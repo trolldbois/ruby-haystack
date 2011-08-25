@@ -25,5 +25,8 @@ puts mmap
 #(0..memoryMap)ptr = memoryMap
 #car = Example::Car.new( ptr , :autorelease => false)
 
+data = mmap.readBytes(start, mmap.size)
+out=filename+'out'
+File.new(out,'w').write(data)
 
 

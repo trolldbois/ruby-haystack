@@ -19,7 +19,7 @@ module Model
 
   def Model.bytes2array(bytes)
     #   not using  #buf = FFI::MemoryPointer.from_string(bytes) terminal \0 is added
-    buf = FFI::MemoryPointer.new(:uchar, bytes.size)
+    buf = FFI::MemoryPointer.new(FFI::TypeDefs[:uchar], bytes.size)
     (0..bytes.size-1).each do |offset|
       buf.put_uchar(offset, bytes[offset])
     end
@@ -54,7 +54,6 @@ module Model
     end
   end
 end
-
 
 
 

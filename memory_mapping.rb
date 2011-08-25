@@ -54,27 +54,37 @@ module Haystack
     end
 
     def readBytes(vaddr, size)
-      laddr = self.vtop(vaddr)
+      #laddr = self.vtop(vaddr)
       #data = b''.join([ struct.pack('B',x) for x in @_local_mmap[laddr:laddr+size] ])
-      data = self.readArray( vaddr, :uchar, size).pack('C*')
+      data = self.readArray( vaddr, FFI::TypeDefs[:uchar], size).pack('C*')
       return data
     end
     
     def readStruct(vaddr, struct)
       laddr = self.vtop(vaddr)
       #car = Example::Car.new( ptr , :autorelease => false)
-      struct = struct.new( @memoryPointer+laddr , :autorelease => false) # true
+      struct = struct.new( @memoryPointer+laddr ) #, :autorelease => false) # true
       return struct
     end
     
     def readArray(vaddr, basetype, count)
       laddr = self.vtop(vaddr)
       ##NiceFFI fromArray. mais est-ce que [type] c'est pareil que type[]
-      array = count.times.collect do |i|
-        basetype.new(laddr+ (i*basetype.size))
-      end
+      #if basetype.class == FFI::Type::Builtin
+      #  #0 # can't do basic type array puts "%s"%basetype.public_methods
+        #return FFI::MemoryPointer.new(basetype, count)
+      #  (@memoryPointer+laddr).read_array_of_int(count)
+      #else
+      #  (@memoryPointer+laddr).read_array_of_type(basetype, {}, count)
+      #  array = count.times.collect do |i|
+      #    basetype.new(@memoryPointer.address +laddr+ (i*basetype.size))
+      #  end
+      #end
+      array = (@memoryPointer+laddr).read_array_of_type(basetype, :read_uchar, count)
       return array
     end
+    ########################3 TODO NEED to define a BultinType to read_method translation table.
+    #########################   and use array Struct building for others.
     
     def getByteBuffer
       if @_bytebuffer.nil
