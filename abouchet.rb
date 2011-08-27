@@ -11,6 +11,8 @@ require 'example'
 require 'model'
 require 'memory_mapping'
 
+include Haystack
+
 filename = 'example.heap'
 start=0x09e26000
 stop=0x09e47000
@@ -19,21 +21,34 @@ f=File.new(filename,'r')
 puts 'file size : %d' % f.lstat.size?
 
 #load it in memory
-memoryMap_content=Haystack.bytes2array( IO.read(filename) )
+memoryMap_content = bytes2array( IO.read(filename) )
 #data=Model.array2bytes( memoryMap , :uchar)
 
 memoryMap = Haystack::LocalMemoryMapping.new(memoryMap_content, start, stop, 'rwx-', 0x0,0x0,0x0,0x0, '[heap]')
 
+#structType = Example::DNA
+structType = Example::Car
+
+
+if false
 require 'finder'
-structType = Example::DNA
 finder = Haystack::StructFinder.new([memoryMap])
 res = finder.find_struct(structType, 0, 10 )
 
 # check for introspection
 instance,offset = res[0]
 
+puts structType.expectedValues
 
+end
 
+def test_utils_types(car)
+  puts isBasicType(car.color) == true
+  puts isBasicType(car.name2) == false
+end
+
+car = structType.new(memoryMap.pointer) 
+test_utils_types (car)
 
 
 

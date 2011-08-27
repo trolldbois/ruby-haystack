@@ -32,7 +32,7 @@ module Haystack
     end
 
     def to_s
-      "#{Haystack.formatAddress(@start)}-#{Haystack.formatAddress(@stop)} => #{@pathname} (#{@permissions})"
+      "#{formatAddress(@start)}-#{formatAddress(@stop)} => #{@pathname} (#{@permissions})"
     end
 
     #def display(port=$>)
@@ -91,6 +91,9 @@ module Haystack
     ########################3 TODO NEED to define a BultinType to read_method translation table.
     #########################   and use array Struct building for others.
     
+    def pointer
+      return @memoryPointer
+    end
     def getByteBuffer
       if @_bytebuffer.nil
         @_bytebuffer = self.readBytes( @start , self.size)

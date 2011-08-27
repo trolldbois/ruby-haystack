@@ -50,7 +50,7 @@ Example :
   # ctypes_openssl.py
   from haystack import model
 
-  class RSA(OpenSSLStruct):
+  class RSA(OpenSSLStruct)
     """ rsa/rsa.h """
     _fields_ = [
     ("pad",  ctypes.c_int), 
@@ -88,12 +88,12 @@ Example :
       "dmq1": [NotNull],
       "iqmp": [NotNull]
     }
-    def loadMembers(self, mappings, maxDepth):
+    def loadMembers(self, mappings, maxDepth)
       print 'example'
-      if not LoadableMembers.loadMembers(self, mappings, maxDepth):
+      if not LoadableMembers.loadMembers(self, mappings, maxDepth)
         log.debug('RSA not loaded')
-        return False
-      return True
+        return false
+      return true
 
   # register to haystack
   model.registerModule(sys.modules[__name__])
@@ -225,7 +225,7 @@ module Haystack
 
 
 =begin
-class CString(ctypes.Union):
+class CString(ctypes.Union)
   ''' 
   This is our own implementation of a string for ctypes.
   ctypes.c_char_p can not be used for memory parsing, as it tries to load 
@@ -237,8 +237,8 @@ class CString(ctypes.Union):
   ("string", ctypes.original_c_char_p),
   ("ptr", ctypes.POINTER(ctypes.c_ubyte) )
   ]
-  def toString(self):
-    if not bool(self.ptr):
+  def toString(self)
+    if not bool(self.ptr)
       return "<NULLPTR>"
     return self.string
   pass
@@ -267,7 +267,14 @@ class CString(ctypes.Union):
     
     # now is the game
     def loadMembers(mappings, depth)
-      log.info('loadmembers expectedValues :%s'%[@expectedValues])
+      log.debug('loadmembers expectedValues :%s'%[@expectedValues])
+      if not self.isValid(mappings)
+        log.debug('Invalid expectedValues')
+        return false
+      end
+      # else load stuff
+      
+      return true
     end
 
 =begin
@@ -277,11 +284,11 @@ class CString(ctypes.Union):
         a) basic types (check for expectedValues), 
           if field as some expected values in expectedValues
              check field value against expectedValues[fieldname]
-             if False, return False, else continue
+             if false, return false, else continue
         
         b) struct(check isValid) 
           check if the inner struct isValid()
-          if False, return False, else continue
+          if false, return false, else continue
         
         c) is an array , recurse validation
         
@@ -289,9 +296,9 @@ class CString(ctypes.Union):
           if field as some expected values in expectedValues 
             ( None or 0 ) are the only valid options to design NULL pointers
              check field getaddress() value against expectedValues[fieldname] // if NULL
-                if True(address is NULL and its a valid value), continue
+                if true(address is NULL and its a valid value), continue
              check getaddress against is_valid_address() 
-                if False, return False, else continue
+                if false, return false, else continue
 =end
 
     def isValid(mappings)
@@ -314,14 +321,11 @@ class CString(ctypes.Union):
         if not self._isValidAttr(attr,attrname,attrtype,mappings)
           return false
         end
-      end
-      #if len(self.expectedValues) >0 :
-      #  log.info('maybe valid . full validation follows validated :%s'%(self.expectedValues.keys()))    
-      # normal check
+      end  if not self.expectedValues.nil?
       _fieldsTuple.each do |attrname, attrtype|
         attr = self[attrname]
         # get expected values
-        if self.expectedValues.include?(attrname)
+        if not self.expectedValues.nil? and self.expectedValues.include?(attrname) 
           # shortcut
           if self.expectedValues[attrname] == IgnoreMember
             next # oho ho
@@ -336,93 +340,118 @@ class CString(ctypes.Union):
       # loop done
       return true
     end
-=begin
       
-    def _isValidAttr(self,attr,attrname,attrtype,mappings):
-      ''' Validation of a single member '''
+    # Validation of a single member 
+    # attr is the field value
+    # attrname is the field Symbol
+    # attrtype is the field type
+    # mappings are the memory mappings
+    def _isValidAttr(attr,attrname,attrtype,mappings)
       # a) 
-      if isBasicType(attr):
-        if attrname in self.expectedValues:
-          if attr not in self.expectedValues[attrname]:
-            log.debug('%s %s %s bad value not in self.expectedValues[attrname]:'%(attrname,attrtype,repr(attr) ))
-            return False
-        log.debug('%s %s %s ok'%(attrname,attrtype,repr(attr) ))
-        return True
+      if isBasicType(attr)
+        if self.expectedValues.include?(attrname)
+          if not self.expectedValues[attrname].include?(attr)
+            log.debug('%s %s %s bad value not in self.expectedValues[attrname]:'%[attrname,attrtype, attr.inpect ])
+            return false
+          end
+        end
+        log.debug('%s %s %s ok'%[attrname, attrtype, attr.inspect ])
+        return true
+      end
       # b)
-      if isStructType(attr):
+      if isStructType(attr)
         ### do i need to load it first ? becaus it should be memcopied with the super()..
-        if not attr.isValid(mappings):
-          log.debug('%s %s %s isValid FALSE'%(attrname,attrtype,repr(attr) ))
-          return False
-        log.debug('%s %s %s isValid TRUE'%(attrname,attrtype,repr(attr) ))
-        return True
+        if not attr.isValid(mappings)
+          log.debug('%s %s %s isValid FALSE'%[attrname,attrtype,attr.inspect ])
+          return false
+        end
+        log.debug('%s %s %s isValid true'%[attrname,attrtype,attr.inspect ])
+        return true
+      end
       # c)
-      if isBasicTypeArrayType(attr):
-        #log.info('%s is arraytype %s we decided it was valid',attrname,repr(attr))#
-        return True
-      if isArrayType(attr):
-        log.debug('%s is arraytype %s recurse validate'%(attrname,repr(attr)) )#
-        attrLen=len(attr)
-        if attrLen == 0:
-          return True
-        elType=type(attr[0])
-        for i in range(0,attrLen):
-          if not self._isValidAttr(attr[i], "%s[%d]"%(attrname,i), elType, mappings ):
-            return False
-        return True
+      if isBasicTypeArrayType(attr)
+        #log.info('%s is arraytype %s we decided it was valid',attrname,attr.inspect)#
+        return true
+      end
+      if isArrayType(attr)
+        log.debug('%s is arraytype %s recurse validate'%[attrname,attr.inspect] )#
+        attrLen = attr.size
+        if attrLen == 0
+          return true
+        end
+        elType = attr[0].type
+        (0..attrLen).each do |i|
+          if not self._isValidAttr(attr[i], "%s[%d]"%[attrname,i], elType, mappings )
+            return false
+          end
+        end
+        return true
+      end
       # d)
-      if isCStringPointer(attr):
-        myaddress=getaddress(attr.ptr)
-        if attrname in self.expectedValues:
+      if isCStringPointer(attr)
+        myaddress = getaddress(attr.to_ptr)
+        if self.expectedValues.include?(attrname) # TODO
           # test if NULL is an option
-          if not bool(myaddress) :
-            if not ( (None in self.expectedValues[attrname]) or
-                     (0 in self.expectedValues[attrname]) ):
-              log.debug('%s %s %s isNULL and that is NOT EXPECTED'%(attrname,attrtype,repr(attr) ))
-              return False
-            log.debug('%s %s %s isNULL and that is OK'%(attrname,attrtype,repr(attr) ))
-            return True
-        if (myaddress != 0) and ( not is_valid_address_value( myaddress, mappings) )   :
-          log.debug('%s %s %s 0x%lx INVALID'%(attrname,attrtype, repr(attr) ,myaddress))
-          return False
-        log.debug('%s %s %s is at 0x%lx OK'%(attrname,attrtype,repr(attr),myaddress ))
-        return True
+          if not myaddress.nil? # TODO address not null
+            if not ( (self.expectedValues[attrname].include? nil ) or
+                     (self.expectedValues[attrname].include? 0) )
+              log.debug('%s %s %s isNULL and that is NOT EXPECTED'%[attrname, attrtype, attr.inspect ])
+              return false
+            end
+            log.debug('%s %s %s isNULL and that is OK'%[attrname, attrtype, attr.inspect ])
+            return true
+          end
+        end
+        if (myaddress != 0) and ( not is_valid_address_value( myaddress, mappings) )   
+          log.debug('%s %s %s 0x%lx INVALID'%[attrname,attrtype, attr.inspect ,myaddress])
+          return false
+        end
+        log.debug('%s %s %s is at 0x%lx OK'%[attrname,attrtype,attr.inspect,myaddress ])
+        return true
+      end
       # e) 
-      if isPointerType(attr):
-        if attrname in self.expectedValues:
+      if isPointerType(attr)
+        if self.expectedValues.include?(attrname)
           # test if NULL is an option
-          if not bool(attr):
-            if not ( (None in self.expectedValues[attrname]) or
-                     (0 in self.expectedValues[attrname]) ):
-              log.debug('%s %s %s isNULL and that is NOT EXPECTED'%(attrname,attrtype,repr(attr) ))
-              return False
-            log.debug('%s %s %s isNULL and that is OK'%(attrname,attrtype,repr(attr) ))
-            return True
+          if not attr == 0
+            if not ( (self.expectedValues[attrname].include? nil ) or
+                     (self.expectedValues[attrname].include? 0) )
+              log.debug('%s %s %s isNULL and that is NOT EXPECTED'%[attrname,attrtype,attr.inspect ])
+              return false
+            end
+            log.debug('%s %s %s isNULL and that is OK'%[attrname,attrtype,attr.inspect ])
+            return true
+          end
+        end
         # all case, 
-        _attrType=None
-        if attrtype not in self.classRef:
-          log.debug("I can't know the size of the basic type behind the %s pointer, it's not a pointer to known registered struct type"%(attrname))
-          _attrType=None
-        else:
+        _attrType=nil
+        if not self.classRef.include? attrtype
+          log.debug("I can't know the size of the basic type behind the %s pointer, it's not a pointer to known registered struct type"%attrname)
+          _attrType=nil
+        else
           # test valid address mapping
-          _attrType=self.classRef[attrtype]
+          _attrType = Haystack.getRef[attrtype]
+        end
         #log.debug(" ihave decided on pointed attrType to be %s"%(_attrType))
-        if ( not is_valid_address( attr, mappings, _attrType) ) and (getaddress(attr) != 0):
-          log.debug('%s %s %s 0x%lx INVALID'%(attrname,attrtype, repr(attr) ,getaddress(attr)))
-          return False
+        if ( not is_valid_address( attr, mappings, _attrType) ) and (getaddress(attr) != 0)
+          log.debug('%s %s %s 0x%lx INVALID'%[attrname,attrtype, attr.inspect ,getaddress(attr)])
+          return false
+        end
         # null is accepted by default 
-        log.debug('%s %s 0x%lx OK'%(attrname,repr(attr) ,getaddress(attr)))
-        return True
+        log.debug('%s %s 0x%lx OK'%[attrname,attr.inspect ,getaddress(attr)])
+        return true
+      end
       # ?
-      if isUnionType(attr):
+      if isUnionType(attr)
         #log.warning('Union are not validated , yet ')
-        return True
-      log.error('What type are You ?: %s/%s'%(attrname,attrtype))
-      return True
-
+        return true
+      end
+      log.error('What type are You ?: %s/%s'%[attrname,attrtype])
+      return true
+    end
 
 =begin
-    def _isLoadableMember(self, attr):
+    def _isLoadableMember(self, attr)
       '''
         Check if the member is loadable.
         A c_void_p cannot be load generically, You have to take care of that.
@@ -432,7 +461,7 @@ class CString(ctypes.Union):
                 isStructType(attr)  or isCStringPointer(attr) or
                 (isArrayType(attr) and not isBasicTypeArrayType(attr) ) ) # should we iterate on Basictypes ? no
 
-    def loadMembers(self, mappings, maxDepth):
+    def loadMembers(self, mappings, maxDepth)
       ''' 
       The validity of the memebrs will be assessed.
       Each members that can be ( structures, pointers), will be evaluated for validity and loaded recursively.
@@ -440,16 +469,16 @@ class CString(ctypes.Union):
       @param mappings: list of memoryMappings for the process.
       @param maxDepth: limitation of depth after which the loading/validation will stop and return results.
 
-      @returns True if everything has been loaded, False if something went wrong. 
+      @returns true if everything has been loaded, false if something went wrong. 
       '''
       if maxDepth == 0:
         log.debug('Maximum depth reach. Not loading any deeper members.')
         log.debug('Struct partially LOADED. %s not loaded'%(self.__class__.__name__))
-        return True
+        return true
       maxDepth-=1
       log.debug('%s loadMembers'%(self.__class__.__name__))
-      if not self.isValid(mappings):
-        return False
+      if not self.isValid(mappings)
+        return false
       log.debug('%s do loadMembers ----------------'%(self.__class__.__name__))
       ## go through all members. if they are pointers AND not null AND in valid memorymapping AND a struct type, load them as struct pointers
       _fieldsTuple = [ (f[0],f[1]) for f in self._fields_] 
@@ -461,56 +490,56 @@ class CString(ctypes.Union):
           if self.expectedValues[attrname] is IgnoreMember:
             # make an new empty ctypes
             setattr(self, attrname, attrtype())
-            return True      
+            return true      
         try:
-          if not self._loadMember(attr,attrname,attrtype,mappings, maxDepth):
-            return False
+          if not self._loadMember(attr,attrname,attrtype,mappings, maxDepth)
+            return false
         except ValueError, e:
           log.error( 'maxDepth was %d'% maxDepth)
           raise e
 
       log.debug('%s END loadMembers ----------------'%(self.__class__.__name__))
-      return True
+      return true
       
-    def _loadMember(self,attr,attrname,attrtype,mappings, maxDepth):
+    def _loadMember(self,attr,attrname,attrtype,mappings, maxDepth)
       # skip static basic data members
-      if not self._isLoadableMember(attr):
+      if not self._isLoadableMember(attr)
         log.debug("%s %s not loadable  bool(attr) = %s"%(attrname,attrtype, bool(attr)) )
-        return True
+        return true
       # load it, fields are valid
-      if isStructType(attr):
+      if isStructType(attr)
         log.debug('%s %s is STRUCT'%(attrname,attrtype) )
-        if not attr.loadMembers(mappings, maxDepth+1):
+        if not attr.loadMembers(mappings, maxDepth+1)
           log.debug("%s %s not valid, erreur while loading inner struct "%(attrname,attrtype) )
-          return False
+          return false
         log.debug("%s %s inner struct LOADED "%(attrname,attrtype) )
-        return True
+        return true
       # maybe an array
-      if isBasicTypeArrayType(attr):
-        return True
-      if isArrayType(attr):
-        log.debug('%s is arraytype %s recurse load'%(attrname,repr(attr)) )#
+      if isBasicTypeArrayType(attr)
+        return true
+      if isArrayType(attr)
+        log.debug('%s is arraytype %s recurse load'%(attrname,attr.inspect) )#
         attrLen=len(attr)
         if attrLen == 0:
-          return True
+          return true
         elType=type(attr[0])
-        for i in range(0,attrLen):
-          if not self._loadMember(attr[i], "%s[%d]"%(attrname,i), elType, mappings, maxDepth):
-            return False
-        return True
+        for i in range(0,attrLen)
+          if not self._loadMember(attr[i], "%s[%d]"%(attrname,i), elType, mappings, maxDepth)
+            return false
+        return true
       # we have PointerType here . Basic or complex
       # exception cases
       if isCStringPointer(attr) : 
         # can't use basic c_char_p because we can't load in foreign memory
         attr_obj_address = getaddress(attr.ptr)
         setattr(self,'__'+attrname,attr_obj_address)
-        if not bool(attr_obj_address):
+        if not bool(attr_obj_address)
           log.debug('%s %s is a CString, the pointer is null (validation must have occurred earlier) '%(attrname, attr))
-          return True
+          return true
         memoryMap = is_valid_address_value(attr_obj_address, mappings)
         if not memoryMap :
           log.warning('Error on addr while fetching a CString. should not happen')
-          return False
+          return false
         MAX_SIZE=255
         log.debug("%s %s is defined as a CString, loading from 0x%lx is_valid_address %s"%(
                         attrname,attr,attr_obj_address, is_valid_address(attr,mappings) ))
@@ -518,8 +547,8 @@ class CString(ctypes.Union):
         if not full:
           log.warning('buffer size was too small for this CString')
         attr.string = txt
-        return True
-      elif isPointerType(attr): # not functionType, it's not loadable
+        return true
+      elif isPointerType(attr) # not functionType, it's not loadable
         _attrname='_'+attrname
         _attrType=self.classRef[attrtype]
         attr_obj_address=getaddress(attr)
@@ -528,15 +557,15 @@ class CString(ctypes.Union):
         # memcpy and save objet ref + pointer in attr
         # we know the field is considered valid, so if it's not in memory_space, we can ignore it
         memoryMap = is_valid_address( attr, mappings, _attrType)
-        if(not memoryMap):
+        if(not memoryMap)
           # big BUG Badaboum, why did pointer changed validity/value ?
           log.warning("%s %s not loadable 0x%lx but VALID "%(attrname, attr,attr_obj_address ))
-          return True
+          return true
         ref=getRef(_attrType,attr_obj_address)
         if ref:
           log.debug("%s %s loading from references cache %s/0x%lx"%(attrname,attr,_attrType,attr_obj_address ))
           attr.contents = ref
-          return True
+          return true
         log.debug("%s %s loading from 0x%lx (is_valid_address: %s)"%(attrname,attr,attr_obj_address, memoryMap ))
         ##### Read the struct in memory and make a copy to play with.
         attr.contents=_attrType.from_buffer_copy(memoryMap.readStruct(attr_obj_address, _attrType ))
@@ -544,20 +573,20 @@ class CString(ctypes.Union):
         keepRef( attr.contents, _attrType, attr_obj_address)
         log.debug("%s %s loaded memcopy from 0x%lx to 0x%lx"%(attrname, attr, attr_obj_address, (getaddress(attr))   ))
         # recursive validation checks on new struct
-        if not bool(attr):
+        if not bool(attr)
           log.warning('Member %s is null after copy: %s'%(attrname,attr))
-          return True
+          return true
         # go and load the pointed struct members recursively
-        if not attr.contents.loadMembers(mappings, maxDepth):
+        if not attr.contents.loadMembers(mappings, maxDepth)
           log.debug('member %s was not loaded'%(attrname))
           #invalidate the cache ref.
           delRef( _attrType, attr_obj_address)
-          return False
-        return True
+          return false
+        return true
       #TATAFN
-      return True
+      return true
     
-    def toString(self,prefix=''):
+    def toString(self,prefix='')
       ''' Returns a string formatted description of this Structure. 
       The returned string should be python-compatible...
       '''
@@ -568,76 +597,76 @@ class CString(ctypes.Union):
         s+=self._attrToString(attr,field,typ,prefix)
       return s
       
-    def _attrToString(self,attr,field,typ,prefix):
+    def _attrToString(self,attr,field,typ,prefix)
       s=''
-      if isStructType(attr):
+      if isStructType(attr)
         s=prefix+'"%s": {\t%s%s},\n'%(field, attr.toString(prefix+'\t'),prefix )  
-      elif isFunctionType(attr):
+      elif isFunctionType(attr)
         s=prefix+'"%s": 0x%lx, #(FIELD NOT LOADED)\n'%(field, getaddress(attr) )   # only print address in target space
-      elif isBasicTypeArrayType(attr): ## array of something else than int      
+      elif isBasicTypeArrayType(attr) ## array of something else than int      
         log.warning(field)
         s=prefix+'"%s": b%s,\n'%(field, repr(array2bytes(attr)) )  
         #s=prefix+'"%s" :['%(field)+','.join(["0x%lx"%(val) for val in attr ])+'],\n'
-      elif isArrayType(attr): ## array of something else than int/byte
+      elif isArrayType(attr) ## array of something else than int/byte
         # go through each elements, we hardly can make a array out of that...
         s=prefix+'"%s" :{'%(field)
         typ=type(attr[0])
-        for i in range(0,len(attr)):
+        for i in range(0,len(attr))
           s+=self._attrToString( attr[i], i, typ, '')
         s+='},\n'
         #s=prefix+'"%s" :['%(field)+','.join(["%s"%(val) for val in attr ])+'],\n'
-      elif isPointerType(attr):
+      elif isPointerType(attr)
         if not bool(attr) :
           s=prefix+'"%s": 0x%lx,\n'%(field, getaddress(attr) )   # only print address/null
         elif not is_address_local(attr) :
           s=prefix+'"%s": 0x%lx, #(FIELD NOT LOADED)\n'%(field, getaddress(attr) )   # only print address in target space
         else:
-          # we can read the pointers contents # if isBasicType(attr.contents): ?  # if isArrayType(attr.contents): ?
+          # we can read the pointers contents # if isBasicType(attr.contents) ?  # if isArrayType(attr.contents) ?
           contents=attr.contents
-          if type(self) == type(contents):
+          if type(self) == type(contents)
             s=prefix+'"%s": { #(0x%lx) -> %s\n%s},\n'%(field, getaddress(attr), type(attr.contents), prefix) # use struct printer
-          elif isStructType(contents): # do not enter in lists
+          elif isStructType(contents) # do not enter in lists
             s=prefix+'"%s": { #(0x%lx) -> %s%s},\n'%(field, getaddress(attr), attr.contents.toString(prefix+'\t'),prefix) # use struct printer
-          elif isPointerType(contents):
+          elif isPointerType(contents)
             s=prefix+'"%s": { #(0x%lx) -> %s%s},\n'%(field, getaddress(attr), self._attrToString(attr.contents, None, None, prefix+'\t'), prefix ) # use struct printer
           else:
             s=prefix+'"%s": { #(0x%lx) -> %s\n%s},\n'%(field, getaddress(attr), attr.contents, prefix) # use struct printer
-      elif isCStringPointer(attr):
+      elif isCStringPointer(attr)
         s=prefix+'"%s": "%s" , #(CString)\n'%(field, attr.string)  
-      elif isBasicType(attr): # basic, ctypes.* !Structure/pointer % CFunctionPointer?
-        s=prefix+'"%s": %s, \n'%(field, repr(attr) )  
+      elif isBasicType(attr) # basic, ctypes.* !Structure/pointer % CFunctionPointer?
+        s=prefix+'"%s": %s, \n'%(field, attr.inspect )  
       else: # wtf ?
-        s=prefix+'"%s": %s, # Unknown/bug DEFAULT repr\n'%(field, repr(attr) )  
+        s=prefix+'"%s": %s, # Unknown/bug DEFAULT repr\n'%(field, attr.inspect )  
       return s
 
-    def __str__(self):
+    def __str__(self)
       s=repr(self)+'\n'
       _fieldsTuple = [ (f[0],f[1]) for f in self._fields_] 
       for field,typ in _fieldsTuple:
         attr=getattr(self,field)
-        if isStructType(attr):
+        if isStructType(attr)
           s+='%s (@0x%lx) : {\t%s}\n'%(field,ctypes.addressof(attr), attr )  
-        elif isFunctionType(attr):
+        elif isFunctionType(attr)
             s+='%s (@0x%lx) : 0x%lx (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
-        elif isBasicTypeArrayType(attr):
+        elif isBasicTypeArrayType(attr)
           try:
             s+='%s (@0x%lx) : %s\n'%(field,ctypes.addressof(attr), repr(array2bytes(attr)) )  
           except IndexError,e:
-            log.error( 'error while reading %s %s'%(repr(attr),type(attr)) )
+            log.error( 'error while reading %s %s'%(attr.inspect,type(attr)) )
             
-        elif isArrayType(attr): ## array of something else than int
+        elif isArrayType(attr) ## array of something else than int
           s+='%s (@0x%lx)  :['%(field, ctypes.addressof(attr),)+','.join(["%s"%(val) for val in attr ])+'],\n'
           continue
-        elif isPointerType(attr):
+        elif isPointerType(attr)
           if not bool(attr) :
             s+='%s (@0x%lx) : 0x%lx\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address/null
           elif not is_address_local(attr) :
             s+='%s (@0x%lx) : 0x%lx (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
-          elif type(self) == type(attr.contents): # do not recurse in lists
+          elif type(self) == type(attr.contents) # do not recurse in lists
             s+='%s (@0x%lx) : (0x%lx) -> {%s}\n'%(field, ctypes.addressof(attr), getaddress(attr), repr(attr.contents) ) # use struct printer
           else:
             s+='%s (@0x%lx) : (0x%lx) -> {%s}\n'%(field, ctypes.addressof(attr), getaddress(attr), attr.contents) # use struct printer
-        elif isCStringPointer(attr):
+        elif isCStringPointer(attr)
           if not bool(attr) :
             s+='%s (@0x%lx) : 0x%lx\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address/null
           elif not is_address_local(attr) :
@@ -647,10 +676,10 @@ class CString(ctypes.Union):
         elif type(attr) is long or type(attr) is int:
           s+='%s : %s\n'%(field, hex(attr) )  
         else:
-          s+='%s : %s\n'%(field, repr(attr) )  
+          s+='%s : %s\n'%(field, attr.inspect )  
       return s
       
-    def toPyObject(self):
+    def toPyObject(self)
       ''' 
       Returns a Plain Old python object as a perfect copy of this ctypes object.
       array would be lists, pointers, inner structures, and circular 
@@ -661,7 +690,7 @@ class CString(ctypes.Union):
       my_class=getattr(sys.modules[self.__class__.__module__],"%s_py"%(self.__class__.__name__) )
       my_self=my_class()
       #keep ref
-      if hasRef(my_class, ctypes.addressof(self) ):
+      if hasRef(my_class, ctypes.addressof(self) )
         return getRef(my_class, ctypes.addressof(self) )
       keepRef(my_self, my_class, ctypes.addressof(self) )
       _fieldsTuple = [ (f[0],f[1]) for f in self._fields_] 
@@ -673,17 +702,17 @@ class CString(ctypes.Union):
       setattr(my_self, '_ctype_', type(self))
       return my_self
       
-    def _attrToPyObject(self,attr,field,typ):
-      if isStructType(attr):
+    def _attrToPyObject(self,attr,field,typ)
+      if isStructType(attr)
         obj=attr.toPyObject()
-      elif isBasicTypeArrayType(attr): ## array of basic types
+      elif isBasicTypeArrayType(attr) ## array of basic types
         obj=array2bytes(attr)
-      elif isArrayType(attr): ## array of something else than int/byte
+      elif isArrayType(attr) ## array of something else than int/byte
         obj=[]
         typ=type(attr[0])
-        for i in range(0,len(attr)):
+        for i in range(0,len(attr))
           obj.append(self._attrToPyObject( attr[i], i, typ) )
-      elif isPointerType(attr):
+      elif isPointerType(attr)
         if not bool(attr) :
           obj=(None,None)
         elif not is_address_local(attr) :
@@ -696,110 +725,110 @@ class CString(ctypes.Union):
             if cache:
               return cache
             obj=contents.toPyObject()
-          elif isPointerType(contents):
+          elif isPointerType(contents)
             obj=self._attrToPyObject(contents,None,None)
           else: # pointer vers autre chose, le repr() est le seul choix.
             #obj=repr(contents)
             obj=contents
-      elif isCStringPointer(attr):
+      elif isCStringPointer(attr)
         obj=attr.string
-      elif isFunctionType(attr):
-        obj = repr(attr)
+      elif isFunctionType(attr)
+        obj = attr.inspect
       else:
         obj = attr
       return obj
 
 
-  class pyObj(object):
+  class pyObj(object)
     ''' 
     Base class for a plain old python object.
     all haystack/ctypes classes will be translated in this format before pickling.
     
     Operations :
-      - toString(self, prefix):  print a nicely formatted data structure
+      - toString(self, prefix)  print a nicely formatted data structure
           @param prefix: str to insert before each line (\t after that)
       - findCtypes(self) : checks if a ctypes is to be found somewhere is the object.
                         Useful to check if the object can be pickled.
     '''
-    def toString(self, prefix='',maxDepth=10):
+    def toString(self, prefix='',maxDepth=10)
       if maxDepth < 0:
         return '#(- not printed by Excessive recursion - )'
       s='{\n'
-      for attrname,typ in self.__dict__.items():
+      for attrname,typ in self.__dict__.items()
         attr = getattr(self, attrname)
         s += "%s%s: %s\n"%( prefix, attrname, self._attrToString(attr, attrname, typ, prefix+'\t', maxDepth=maxDepth-1) )
       s+='}'
       return s
 
-    def _attrToString(self, attr, attrname, typ, prefix, maxDepth):
+    def _attrToString(self, attr, attrname, typ, prefix, maxDepth)
       s=''
       if type(attr) is tuple or type(attr) is list:
-        for i in xrange(0,len(attr)):
+        for i in xrange(0,len(attr))
           s += '%s,'%(self._attrToString(attr[i], i ,None, prefix+'\t', maxDepth) )
         s = "[%s],"%(s)
-      elif not hasattr(attr,'__dict__'):
-        s = '%s,'%( repr(attr) )
-      elif  isinstance( attr , pyObj):
+      elif not hasattr(attr,'__dict__')
+        s = '%s,'%( attr.inspect )
+      elif  isinstance( attr , pyObj)
         s = '%s,'%( attr.toString(prefix,maxDepth) )
       else:
-        s = '%s,'%(repr(attr) )
+        s = '%s,'%(attr.inspect )
       return s
 
-    def __len__(self):
+    def __len__(self)
       return self._len_
       
-    def findCtypes(self):
-      ret = False
-      for attrname,typ in self.__dict__.items():
+    def findCtypes(self)
+      ret = false
+      for attrname,typ in self.__dict__.items()
         # ignore _ctype_, it's a ctype class type, we know that.
         if attrname == '_ctype_' :
           continue
         attr = getattr(self, attrname)
-        if self._attrFindCtypes(attr, attrname,typ ):
+        if self._attrFindCtypes(attr, attrname,typ )
           log.warning('Found a ctypes in %s'%(attrname))
-          ret = True
+          ret = true
 
-    def _attrFindCtypes(self, attr, attrname, typ):
-      ret = False
+    def _attrFindCtypes(self, attr, attrname, typ)
+      ret = false
       if type(attr) is tuple or type(attr) is list:
         for el in attr:
-          if self._attrFindCtypes(el, 'element', None):
+          if self._attrFindCtypes(el, 'element', None)
             log.warning('Found a ctypes in array/tuple')
-            return True
-      elif isCTypes(attr):
+            return true
+      elif isCTypes(attr)
         log.warning('Found a ctypes in self  %s'%(attr))
-        return True
-      elif not hasattr(attr,'__dict__'):
-        return False
+        return true
+      elif not hasattr(attr,'__dict__')
+        return false
       else:
         #log.warning("else %s"%type(attr))
-        ret = False
+        ret = false
       return ret
 
-    def __iter__(self):
+    def __iter__(self)
       ''' iterate on a instance's type's _fields_ members following the original type field order '''
       for k,typ in [ (f[0],f[1]) for f in self._ctype_._fields_]:
         v = getattr(self,k)
         yield (k,v,typ)
       pass
 
-  def findCtypesInPyObj(obj):
+  def findCtypesInPyObj(obj)
     ''' check function to help in unpickling errors correction '''
-    ret = False
-    if isinstance(obj, pyObj):
-      if obj.findCtypes():
+    ret = false
+    if isinstance(obj, pyObj)
+      if obj.findCtypes()
         log.warning('Found a ctypes in array/tuple')
-        return True
+        return true
     elif type(obj) is tuple or type(obj) is list:
       for el in obj:
-        if findCtypesInPyObj(el):
+        if findCtypesInPyObj(el)
           log.warning('Found a ctypes in array/tuple')
-          return True
-    return False
+          return true
+    return false
         
   import inspect,sys
 
-  def copyGeneratedClasses(src, dst):
+  def copyGeneratedClasses(src, dst)
     ''' 
       Copies the members of a generated module into a classic module.
       Name convention : 
@@ -812,8 +841,8 @@ class CString(ctypes.Union):
     __root_module_name,__dot,__module_name = dst.__name__.rpartition('.')
     _loaded=0
     _registered=0
-    for (name, klass) in inspect.getmembers(src, inspect.isclass):
-      if type(klass) == type(ctypes.Structure):
+    for (name, klass) in inspect.getmembers(src, inspect.isclass)
+      if type(klass) == type(ctypes.Structure)
         if klass.__module__.endswith('%s_generated'%(__module_name) ) :
           setattr(dst, name, klass)
           _loaded+=1
@@ -826,13 +855,13 @@ class CString(ctypes.Union):
     return 
 
 
-  def createPOPOClasses( targetmodule ):
+  def createPOPOClasses( targetmodule )
     ''' Load all model classes and create a similar non-ctypes Python class  
       thoses will be used to translate non pickable ctypes into POPOs.
     '''
     _created=0
-    for klass,typ in inspect.getmembers(targetmodule, inspect.isclass):
-      if typ.__module__.startswith(targetmodule.__name__):
+    for klass,typ in inspect.getmembers(targetmodule, inspect.isclass)
+      if typ.__module__.startswith(targetmodule.__name__)
         kpy = type('%s.%s_py'%(targetmodule.__name__, klass),( pyObj ,),{})
         # add the structure size to the class
         if type(typ) == type(LoadableMembers) or type(typ) == type( ctypes.Union) :
@@ -852,7 +881,7 @@ class CString(ctypes.Union):
     log.debug('created %d POPO types'%( _created))
     return
 
-  def registerModule( targetmodule ):
+  def registerModule( targetmodule )
     ''' 
     Registers a ctypes module. To be run by target module.
     
@@ -861,12 +890,12 @@ class CString(ctypes.Union):
     
     Creates POPO's to be able to unpickle ctypes.
     '''
-    if targetmodule in registeredModules():
+    if targetmodule in registeredModules()
       log.warning('Module %s already registered. Skipping.'%(targetmodule))
       return
     _registered = 0
-    for klass,typ in inspect.getmembers(targetmodule, inspect.isclass):
-      if typ.__module__.startswith(targetmodule.__name__):
+    for klass,typ in inspect.getmembers(targetmodule, inspect.isclass)
+      if typ.__module__.startswith(targetmodule.__name__)
         register( typ )
         _registered += 1
     # create POPO's
@@ -876,7 +905,7 @@ class CString(ctypes.Union):
     log.debug('regisered %d module total'%(len(__book.getModules())))
     return
 
-  def isRegistered(cls):
+  def isRegistered(cls)
     #return cls in sys.modules[__name__].__dict__.values()
     return __book.isRegisteredType(cls)
 
@@ -907,6 +936,12 @@ module FFI
         ret[self.members[x] ] = self.layout.fields[x].type
       end
       return ret
+    end    
+    def fields
+      return self.class.fields
+    end    
+    def expectedValues
+      return self.class.expectedValues
     end    
   end
 end

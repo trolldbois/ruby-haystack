@@ -51,6 +51,7 @@ struct car {
     int a3;
     int a4;
     int a5;
+    char name2[255];
     Brand brand;
 } ;
 
@@ -66,6 +67,7 @@ int main(int argc, char* argv)
     printf("Car has been allocated\n");
     car->name = (char *)malloc(256);
     strcpy(car->name, name);
+    strcpy(car->name2, name);
     car->color = BLUE;
     car->a1 = VALUE_A1;
     car->a2 = VALUE_A2;

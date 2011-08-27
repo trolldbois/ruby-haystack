@@ -6,19 +6,19 @@
 
 module Haystack
 
-  def Haystack.formatAddress(addr)
+  def formatAddress(addr)
     "0x%08x"%addr
   end
   
 
-  def Haystack.hasValidPermissions(memmap)
+  def hasValidPermissions(memmap)
     #''' memmap must be 'rw..' or shared '...s' '''
     perms = memmap.permissions
     return ((perms[0].chr == 'r' and perms[1].chr == 'w') or (perms[3].chr == 's') )
   end
 
 
-  def Haystack.bytes2array(bytes)
+  def bytes2array(bytes)
     #   not using  #buf = FFI::MemoryPointer.from_string(bytes) terminal \0 is added
     buf = FFI::MemoryPointer.new(FFI::TypeDefs[:uchar], bytes.size)
     (0..bytes.size-1).each do |offset|
@@ -27,8 +27,8 @@ module Haystack
     return buf
   end
 
-  def Haystack.array2bytes(array, type)
-    buf = String('')
+  def array2bytes(array, type)
+    buf = String.new('') #?
     (0..array.size-1).each do |offset|
       buf << array.get_uchar(offset)
     end
@@ -41,9 +41,9 @@ module Haystack
     @param mappings: the memory mappings in a list.
     @param structType: the object's type, so the size could be taken in consideration.
     
-    Returns False if the object address is NULL.
-    Returns False if the object address is not in a mapping.
-    Returns False if the object overflows the mapping.
+    Returns false if the object address is NULL.
+    Returns false if the object address is not in a mapping.
+    Returns false if the object overflows the mapping.
     
     Returns the mapping in which the object stands otherwise.
 =end
@@ -61,9 +61,9 @@ module Haystack
     @param mappings: the memory mappings in a list.
     @param structType: the object's type, so the size could be taken in consideration.
     
-    Returns False if the object address is NULL.
-    Returns False if the object address is not in a mapping.
-    Returns False if the object overflows the mapping.
+    Returns false if the object address is NULL.
+    Returns false if the object address is not in a mapping.
+    Returns false if the object overflows the mapping.
     
     Returns the mapping in which the address stands otherwise.
 =end
@@ -87,7 +87,7 @@ module Haystack
     Costly , checks if obj is mapped to local memory space.
 
     Returns the memory mapping if found.
-      False, otherwise.
+      false, otherwise.
 =end
   def is_address_local(obj, structType=nil)
     addr = getaddress(obj)
@@ -186,20 +186,20 @@ module Haystack
       #raise e
     return sb
 
-  def array2bytes(array):
+  def array2bytes(array)
     ''' Convert an array of undetermined Basic Ctypes class to a byte string, 
     by guessing it's type from it's class name.
     
     This is a bad example of introspection.
     '''
-    if not isBasicTypeArrayType(array):
+    if not isBasicTypeArrayType(array)
       return b'NOT-AN-BasicType-ARRAY'
     # BEURK
     log.info(type(array).__name__.split('_'))
     typ='_'.join(type(array).__name__.split('_')[:2])
     return array2bytes_(array,typ)
 
-  def bytes2array(bytes, typ):
+  def bytes2array(bytes, typ)
     ''' Converts a bytestring in a ctypes array of typ() elements.'''
     typLen=ctypes.sizeof(typ)
     if len(bytes)%typLen != 0:
@@ -215,77 +215,99 @@ module Haystack
     sb=b''
     import struct
     try:
-      for i in range(0,arrayLen):
+      for i in range(0,arrayLen)
         array[i]=unpack(fmt, bytes[typLen*i:typLen*(i+1)])[0]
     except struct.error,e:
       log.error('format:%s typLen*i:typLen*(i+1) = %d:%d'%(fmt, typLen*i,typLen*(i+1)))
       raise e
     return array
+=end
 
-
-  def pointer2bytes(attr,nbElement):
-    ''' 
-    Returns an array from a ctypes POINTER, geiven the number of elements.
+=begin
+    Returns an array from a typedpointer, given the number of elements.
     
     @param attr: the structure member.
     @param nbElement: the number of element in the array.
-    '''
+  def pointer2bytes(attr, nbElement)
     # attr is a pointer and we want to read elementSize of type(attr.contents))
-    if not is_address_local(attr):
+    if not is_address_local(attr)
       return 'POINTER NOT LOCAL'
-    firstElementAddr=getaddress(attr)
-    array=(type(attr.contents)*nbElement).from_address(firstElementAddr)
+    end
+    firstElementAddr = getaddress(attr)
+    return 
+    #array=(type(attr.contents)*nbElement).from_address(firstElementAddr)
+    #FFI::MemoryPointer.new( firstElementAddr , nbElements)
     # we have an array type starting at attr.contents[0]
-    return array2bytes(array)
-
-  def isCTypes(obj):
-    ''' Checks if an object is a ctypes type object'''
-    return  (type(obj).__module__ in ['ctypes','_ctypes']) 
-      
-  def isBasicType(obj):
-    ''' Checks if an object is a ctypes basic type, or a python basic type.'''
-    return not isPointerType(obj) and not isFunctionType(obj) and (type(obj).__module__ in ['ctypes','_ctypes','__builtin__']) 
-
-  def isStructType(obj):
-    ''' Checks if an object is a ctypes Structure.'''
-    return isinstance(obj, ctypes.Structure)
-
-  __ptrt = type(ctypes.POINTER(ctypes.c_int))
-  def isPointerType(obj):
-    ''' Checks if an object is a ctypes pointer.'''
-    return __ptrt == type(type(obj)) or isFunctionType(obj)
-
-  def isBasicTypeArrayType(obj):
-    ''' Checks if an object is a array of basic types.
-    It checks the type of the first element.
-    The array should not be null :).
-    '''
-    if isArrayType(obj):
+    #return array2bytes(array)
+  end
+=end
+  
+  # Checks if an object is a ctypes type object, buitin or struct or enum or union
+  # TODO : how about arrays, chararray & stuff
+  def isFFITypes(obj)
+    return (isBasicType(obj) or isStructType(obj) )
+  end
+   
+  # Checks if an object is a ctypes basic type, or a python basic type.
+  # not a structure and not a pointer ?
+  # Fixnum, Char
+  def isBasicType(obj)
+    [Fixnum, Bignum, Float, FFI::Type].each do |typ|
+      if obj.kind_of? typ
+        return true
+      end
+    end
+    return false
+  end
+  
+  #Checks if an object is a ctypes Structure.
+  def isStructType(obj)
+    return ( obj.kind_of? FFI::Struct)
+  end
+  
+  # Checks if an object is a pointer type.
+  def isPointerType(obj)
+    return ( obj.kind_of? FFI::Pointer or obj.kind_of? NiceFFI::TypedPointer )
+  end
+  
+  #Checks if an object is a array of basic types.
+  #  It checks the type of the first element.
+  #  The array should not be null :).
+  def isBasicTypeArrayType(obj)
+    if isArrayType(obj)
       if len(obj) == 0:
-        return False # no len is no BasicType
-      if isPointerType(obj[0]):
-        return False
-      if isBasicType(obj[0]):
-        return True
-    return False
+        return false # no len is no BasicType
+      end
+      if isPointerType(obj[0])
+        return false
+      end
+      if isBasicType(obj[0])
+        return true
+      end
+    end
+    return false
+  end
 
-  __arrayt = type(ctypes.c_int*1)
-  def isArrayType(obj):
-    ''' Checks if an object is a ctype array.'''
-    return __arrayt == type(type(obj))
+  # Checks if an object is a ctype array.
+  # TODO
+  def isArrayType(obj)
+    return((obj.kind_of? FFI::Struct::InlineArray) or (obj.kind_of? ::Array))
+  end
+  
+  #  ''' Checks if an object is a function pointer.'''
+  def isFunctionType(obj)
+    return obj.kind_of? FFI::Type::Function
+  end
+  
+  #  ''' Checks if an object is our CString.'''
+  def isCStringPointer(obj)
+    #return obj.kind_of? FFI::TypeDefs[:string]
+    return obj == FFI::TypeDefs[:string]
+  end
 
-  __cfuncptrt = type(type(ctypes.memmove))
-  def isFunctionType(obj):
-    ''' Checks if an object is a function pointer.'''
-    return __cfuncptrt == type(type(obj))
-
-  def isCStringPointer(obj):
-    ''' Checks if an object is our CString.'''
-    return obj.__class__.__name__ == 'CString'
-
-  def isUnionType(obj):
-    ''' Checks if an object is a Union type.'''
-    return isinstance(obj,ctypes.Union) and not isCStringPointer(obj)
+  #  ''' Checks if an object is a Union type.'''
+  def isUnionType(obj)
+    return obj.kind_of? FFI::Union
   end
 
 =begin
