@@ -231,9 +231,30 @@ module Haystack
   
   it's basically a Union of a string and a pointer.
 =end
-  class CString < FFI::Pointer #(ctypes.Union)
+  
+  class CString < NiceFFI::TypedPointer
+    
+  end
+
+  class CStringConverter #< FFI::Pointer #(ctypes.Union)
     extend FFI::DataConverter
     native_type FFI::Type::POINTER
+
+    def self.from_native(val, ctx)
+      #puts "CTX : #{ctx.class}"
+      #puts''
+      #if val.null? 
+      #  #puts 'CString val is null'
+      #  return CString.new(val)
+      #end
+      #puts 'val not null'
+      #puts ''
+      # is_valid_address_value(addr, mappings, structType=nil) ??
+      #return [val.get_string(0), val ]
+      return CString.new(val)
+    end
+        
+  end
 =begin
   _fields_=[
   ("string", ctypes.original_c_char_p),
@@ -245,10 +266,10 @@ module Haystack
     return self.string
   pass
 =end
-  end
 
-  FFI.typedef(Haystack::CString, :string)
-  FFI::TypeDefs[:CString] = Haystack::CString
+  FFI.typedef(Haystack::CStringConverter, :string)
+  #FFI.typedef(FFI::StrPtrConverter, :string)
+  #FFI::TypeDefs[:CString] = Haystack::CString
 
 
 
@@ -319,10 +340,10 @@ module Haystack
       end
       return obj.to_s()
     end
-    def printValid(name, obj)
+    def printValid(me, name, obj)
       puts "field: #{name}    \t, obj: #{hex(obj)} , obj.class: #{obj.class} , " \
-      "isBasicType: #{isBasicType(obj)} , isPointerType: #{isPointerType(obj)} , " \
-       "isArrayType: #{isArrayType(obj)} , isStructType: #{isStructType(obj)} , " \
+      "isBasicType: #{isBasicType(obj)} , isPointerType: #{isPointerType(obj)} , " 
+      puts "isArrayType: #{isArrayType(obj)} , isStructType: #{isStructType(obj)} , " \
        "isCStringPointer: #{isCStringPointer(obj)}, isFFIType: #{isFFIType(obj)} " \
     end
 
@@ -366,7 +387,7 @@ module Haystack
     # attrtype is the field type
     # mappings are the memory mappings
     def _isValidAttr(attr,attrname,attrtype,mappings)
-      printValid attrname, attr
+      #printValid self, attrname, attr
       # a) 
       if isBasicType(attr)
         if not self.expectedValues.nil? and self.expectedValues.include?(attrname) 
@@ -408,8 +429,8 @@ module Haystack
         return true
       end
       # d)
-      if isCStringPointer(attr)
-        myaddress = getaddress(attr.to_ptr)
+      if isCStringPointer( attr)
+        myaddress = getaddress(attr)
         if not self.expectedValues.nil? and self.expectedValues.include?(attrname) # TODO
           # test if NULL is an option
           if not myaddress.nil? # TODO address not null
@@ -422,7 +443,7 @@ module Haystack
             return true
           end
         end
-        if (myaddress != 0) and ( not is_valid_address_value( myaddress, mappings) )   
+        if (not myaddress.nil?) and ( not is_valid_address_value( myaddress, mappings) )   
           log.debug('%s %s %s 0x%x INVALID'%[attrname,attrtype, attr.inspect ,myaddress])
           return false
         end

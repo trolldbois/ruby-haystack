@@ -50,7 +50,7 @@ module Haystack
   def is_valid_address(obj, mappings, structType=nil)
     # check for null pointers
     addr = getaddress(obj)
-    if addr == 0
+    if addr.nil? 
       return false
     end
     return is_valid_address_value(addr, mappings, structType)
@@ -91,7 +91,7 @@ module Haystack
 =end
   def is_address_local(obj, structType=nil)
     addr = getaddress(obj)
-    if addr == 0
+    if addr.nil?
       return false
     end
     process = Struct.new(:pid)
@@ -107,13 +107,14 @@ module Haystack
 =end
   def getaddress(obj)
     # check for null pointers
-    if not obj.nil?
-      if not obj.respond_to?(:address)  ## TODO
-        return 0
-      end
+    if obj.nil?
+      return nil
+    elsif obj.respond_to?(:address)
       return obj.address
+    elsif obj.respond_to?(:to_ptr) 
+      return obj.to_ptr.address
     else
-      return 0  
+      return nil
     end
   end
 
@@ -301,11 +302,6 @@ module Haystack
   
   #  ''' Checks if an object is our CString.'''
   def isCStringPointer(obj)
-    #return obj.kind_of? FFI::TypeDefs[:string]
-    if not isPointerType(obj)
-      return false
-    end
-    #return obj == FFI::TypeDefs[:string]
     return obj.kind_of? Haystack::CString
   end
 
@@ -392,7 +388,7 @@ module Logging
 
     def configure_logger_for(classname)
       logger = Logger.new(STDOUT)
-      logger.level = Logger::DEBUG
+      logger.level = Logger::INFO
       logger.progname = classname
       logger
     end

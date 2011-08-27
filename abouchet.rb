@@ -44,6 +44,7 @@ end
 
 
 
+
 filename = 'example.heap'
 start=0x09e26000
 stop=0x09e47000
@@ -74,4 +75,11 @@ instance,offset = res[0]
 puts structType.expectedValues
 
 
+require 'example'
+p=FFI::MemoryPointer.new(Example::Car,1)
+car=Example::Car.new(p)
+car.brand.brandname
+
+
+return
 
