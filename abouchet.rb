@@ -20,13 +20,19 @@ memoryMap=Model.bytes2array( IO.read(filename) )
 #data=Model.array2bytes( memoryMap , :uchar)
 
 mmap = Haystack::LocalMemoryMapping.new(memoryMap, start, stop, '-rwx', 0x0,0x0,0x0,0x0, '[heap]')
-puts mmap
-#try to map Car
-#(0..memoryMap)ptr = memoryMap
-#car = Example::Car.new( ptr , :autorelease => false)
 
-data = mmap.readBytes(start, mmap.size)
-out=filename+'out'
-File.new(out,'w').write(data)
+def test_mmap
+  #try to map Car
+  #(0..memoryMap)ptr = memoryMap
+  #car = Example::Car.new( ptr , :autorelease => false)
+  puts mmap
+  data = mmap.readBytes(start, mmap.size)
+  out=filename+'out'
+  File.new(out,'w').write(data)
+end
 
+require 'finder'
+structType = Example::Car
+finder = Haystack::StructFinder.new([memoryMap])
+finder.find_struct(structType, 0, 10 )
 

@@ -2,10 +2,6 @@
 
 module Haystack
 
-  def Haystack.formatAddress(addr)
-    "0x%08x"%addr
-  end
-  
   class MemoryMapping
     def initialize(start, stop, permissions='rwx-', offset=0x0, major_device=0x0, minor_device=0x0, inode=0x0, pathname='MEMORYDUMP')
       @start=start
@@ -22,7 +18,7 @@ module Haystack
       @stop-@start
     end
     
-    def contains( vaddr )
+    def include?( vaddr )
       @start <= vaddr and vaddr <= @stop
     end
 
@@ -70,7 +66,7 @@ module Haystack
     def readArray(vaddr, basetype, count)
       laddr = self.vtop(vaddr)
       ##NiceFFI fromArray. mais est-ce que [type] c'est pareil que type[]
-      #if basetype.class == FFI::Type::Builtin
+      #if basetype.class == FFI::Type::Builtin is_kind_of
       #  #0 # can't do basic type array puts "%s"%basetype.public_methods
         #return FFI::MemoryPointer.new(basetype, count)
       #  (@memoryPointer+laddr).read_array_of_int(count)
