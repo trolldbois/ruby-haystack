@@ -7,29 +7,36 @@
 require 'rubygems'
 require 'nice-ffi'
 
+require 'model'
+
 #--- example of a generated struct
 module Example
-
+  # Use our CString
+  #CString = :pointer
+  #string = :CString
+  
   class DNA < NiceFFI::Struct
-    layout :id,  :int,
-           :c, :char,
+    layout :id,  :uint,
+           :c, :uchar,
            :f, :float
   end
 
   class Brand < NiceFFI::Struct
-    layout :name,  :string,
-           :magic, :int
+    layout :brandmagic, :uint,
+           :brandname,  :string # string
+           
   end
 
   class Car < NiceFFI::Struct
-    layout :name,  :string,
-           :color,  :int,
-           :a1,  :int,
-           :a2,  :int,
-           :a3,  :int,
-           :a4,  :int,
-           :a5,  :int,
-           :name2, [:char , 255],
+    layout :magic1, :uint,
+           :name,  :string,
+           :color,  :uint,
+           :a1,  :uint,
+           :a2,  :uint,
+           :a3,  :uint,
+           :a4,  :uint,
+           :a5,  :uint,
+           :name2, [:uchar , 255],
            :brand, Example::Brand
   end
   #:char_array 
@@ -49,14 +56,17 @@ module Haystack
         :id => [Example::MAGIC] ,
         }
 
+  Example::Brand.expectedValues = { 
+        :brandname => [NotNull],
+        :brandmagic => [Example::MAGIC],
+        }
   Example::Car.expectedValues = { 
-        :color => [RangeValue.new(0,3)] ,
-        :a1 => [0],
-        :a2 => [1],
-        :a3 => [2],
-        :a4 => [3],
-        :a5 => [4],
-        :brand => [NotNull]
+        :color => [RangeValue.new(10,13)] ,
+        :a1 => [1],
+        :a2 => [2],
+        :a3 => [3],
+        :a4 => [4],
+        :a5 => [5]
         }
 end
 

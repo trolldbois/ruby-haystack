@@ -16,15 +16,16 @@
 #define TRUE 1
 #endif
 
-#define RED   0
-#define BLUE  1
-#define GREEN 2
-#define YELLOW 3
+#define RED   10
+#define BLUE  11
+#define GREEN 12
+#define YELLOW 13
 
 #define MAGIC 0xff112233
 
 
 typedef enum {
+    VALUE_A0,
     VALUE_A1,
     VALUE_A2,
     VALUE_A3,
@@ -33,17 +34,17 @@ typedef enum {
     VALUE_A6,
     VALUE_A7,
     VALUE_A8,
-    VALUE_A9,
-    VALUE_A0,
-} int_values;
+    VALUE_A9
+} ;
 
 struct brand {
-    char * name;
-    int magic;
+    int brandmagic;
+    char * brandname;
 } ;
 typedef struct brand Brand;
 
 struct car {
+    int magic1;
     char * name;
     int color;
     int a1;
@@ -65,6 +66,7 @@ int main(int argc, char* argv)
     
     car = (Car *)malloc(sizeof(Car) );
     printf("Car has been allocated\n");
+    car->magic1 = MAGIC ;
     car->name = (char *)malloc(256);
     strcpy(car->name, name);
     strcpy(car->name2, name);
@@ -74,9 +76,9 @@ int main(int argc, char* argv)
     car->a3 = VALUE_A3;
     car->a4 = VALUE_A4;
     car->a5 = VALUE_A5;
-    car->brand.name = (char *)malloc(256);
-    strcpy(&car->brand.name, "Peugeot");
-    car->brand.magic = MAGIC ;
+    car->brand.brandname = (char *)malloc(256);
+    strcpy(car->brand.brandname, "Peugeot");
+    car->brand.brandmagic = MAGIC ;
     printf("member have been initialized\n");
     
     while(1)

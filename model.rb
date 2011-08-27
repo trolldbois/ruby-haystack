@@ -178,12 +178,12 @@ module Haystack
     end
   end
   
-  def hasRef(typ,origAddr)
+  def hasRef?(typ,origAddr)
     return $book.refs.member? [typ,origAddr]
   end
 
   def getRef(typ,origAddr)
-    if hasRef(typ,origAddr)
+    if hasRef?(typ,origAddr)
       return $book.refs[[typ,origAddr]]
     end
     return nil
@@ -192,7 +192,7 @@ module Haystack
   #  ''' Sometypes, your have to cast a c_void_p, You can keep ref in Ctypes object, 
   #    they might be transient (if obj == somepointer.contents).'''
   def keepRef(obj,typ=nil,origAddr=nil)
-    if hasRef(typ,origAddr)
+    if hasRef?(typ,origAddr)
       # ADDRESS already in refs
       if not typ.nil?
         if origAddr.nil?
@@ -225,14 +225,16 @@ module Haystack
 
 
 =begin
-class CString(ctypes.Union)
-  ''' 
   This is our own implementation of a string for ctypes.
   ctypes.c_char_p can not be used for memory parsing, as it tries to load 
   the string itself without checking for pointer validation.
   
   it's basically a Union of a string and a pointer.
-  '''
+=end
+  class CString < FFI::Pointer #(ctypes.Union)
+    extend FFI::DataConverter
+    native_type FFI::Type::POINTER
+=begin
   _fields_=[
   ("string", ctypes.original_c_char_p),
   ("ptr", ctypes.POINTER(ctypes.c_ubyte) )
@@ -243,6 +245,11 @@ class CString(ctypes.Union)
     return self.string
   pass
 =end
+  end
+
+  FFI.typedef(Haystack::CString, :string)
+  FFI::TypeDefs[:CString] = Haystack::CString
+
 
 
 =begin
@@ -300,13 +307,24 @@ class CString(ctypes.Union)
              check getaddress against is_valid_address() 
                 if false, return false, else continue
 =end
-
     def isValid(mappings)
       valid = self._isValid(mappings)
       log.debug('%s isValid = %s'%[self.class,valid])
       return valid
     end
 
+    def hex(obj)
+      if obj.kind_of? Numeric
+        return "0x%x"%obj
+      end
+      return obj.to_s()
+    end
+    def printValid(name, obj)
+      puts "field: #{name}    \t, obj: #{hex(obj)} , obj.class: #{obj.class} , " \
+      "isBasicType: #{isBasicType(obj)} , isPointerType: #{isPointerType(obj)} , " \
+       "isArrayType: #{isArrayType(obj)} , isStructType: #{isStructType(obj)} , " \
+       "isCStringPointer: #{isCStringPointer(obj)}, isFFIType: #{isFFIType(obj)} " \
+    end
 
     def _isValid(mappings)
       # precheck for quick unvalidation
@@ -324,6 +342,7 @@ class CString(ctypes.Union)
       end  if not self.expectedValues.nil?
       _fieldsTuple.each do |attrname, attrtype|
         attr = self[attrname]
+        #attr = attrname
         # get expected values
         if not self.expectedValues.nil? and self.expectedValues.include?(attrname) 
           # shortcut
@@ -347,14 +366,15 @@ class CString(ctypes.Union)
     # attrtype is the field type
     # mappings are the memory mappings
     def _isValidAttr(attr,attrname,attrtype,mappings)
+      printValid attrname, attr
       # a) 
       if isBasicType(attr)
-        if self.expectedValues.include?(attrname)
+        if not self.expectedValues.nil? and self.expectedValues.include?(attrname) 
           if not self.expectedValues[attrname].include?(attr)
-            log.debug('%s %s %s bad value not in self.expectedValues[attrname]:'%[attrname,attrtype, attr.inpect ])
+            log.debug('%s %s %s bad value not in self.expectedValues[attrname]:'%[attrname,attrtype, attr ])
             return false
           end
-        end
+        end 
         log.debug('%s %s %s ok'%[attrname, attrtype, attr.inspect ])
         return true
       end
@@ -390,7 +410,7 @@ class CString(ctypes.Union)
       # d)
       if isCStringPointer(attr)
         myaddress = getaddress(attr.to_ptr)
-        if self.expectedValues.include?(attrname) # TODO
+        if not self.expectedValues.nil? and self.expectedValues.include?(attrname) # TODO
           # test if NULL is an option
           if not myaddress.nil? # TODO address not null
             if not ( (self.expectedValues[attrname].include? nil ) or
@@ -403,17 +423,17 @@ class CString(ctypes.Union)
           end
         end
         if (myaddress != 0) and ( not is_valid_address_value( myaddress, mappings) )   
-          log.debug('%s %s %s 0x%lx INVALID'%[attrname,attrtype, attr.inspect ,myaddress])
+          log.debug('%s %s %s 0x%x INVALID'%[attrname,attrtype, attr.inspect ,myaddress])
           return false
         end
-        log.debug('%s %s %s is at 0x%lx OK'%[attrname,attrtype,attr.inspect,myaddress ])
+        log.debug('%s %s %s is at 0x%x OK'%[attrname,attrtype,attr.inspect,myaddress ])
         return true
       end
       # e) 
       if isPointerType(attr)
-        if self.expectedValues.include?(attrname)
+        if not self.expectedValues.nil? and self.expectedValues.include?(attrname)
           # test if NULL is an option
-          if not attr == 0
+          if not attr.nil?
             if not ( (self.expectedValues[attrname].include? nil ) or
                      (self.expectedValues[attrname].include? 0) )
               log.debug('%s %s %s isNULL and that is NOT EXPECTED'%[attrname,attrtype,attr.inspect ])
@@ -425,20 +445,20 @@ class CString(ctypes.Union)
         end
         # all case, 
         _attrType=nil
-        if not self.classRef.include? attrtype
+        if not attrtype.kind_of? NiceFFI::TypedPointer
           log.debug("I can't know the size of the basic type behind the %s pointer, it's not a pointer to known registered struct type"%attrname)
           _attrType=nil
         else
           # test valid address mapping
-          _attrType = Haystack.getRef[attrtype]
+          _attrType = attrtype.type
         end
         #log.debug(" ihave decided on pointed attrType to be %s"%(_attrType))
         if ( not is_valid_address( attr, mappings, _attrType) ) and (getaddress(attr) != 0)
-          log.debug('%s %s %s 0x%lx INVALID'%[attrname,attrtype, attr.inspect ,getaddress(attr)])
+          log.debug('%s %s %s 0x%x INVALID'%[attrname,attrtype, attr.inspect ,getaddress(attr)])
           return false
         end
         # null is accepted by default 
-        log.debug('%s %s 0x%lx OK'%[attrname,attr.inspect ,getaddress(attr)])
+        log.debug('%s %s 0x%x OK'%[attrname,attr.inspect ,getaddress(attr)])
         return true
       end
       # ?
@@ -541,7 +561,7 @@ class CString(ctypes.Union)
           log.warning('Error on addr while fetching a CString. should not happen')
           return false
         MAX_SIZE=255
-        log.debug("%s %s is defined as a CString, loading from 0x%lx is_valid_address %s"%(
+        log.debug("%s %s is defined as a CString, loading from 0x%x is_valid_address %s"%(
                         attrname,attr,attr_obj_address, is_valid_address(attr,mappings) ))
         txt,full = memoryMap.readCString(attr_obj_address, MAX_SIZE )
         if not full:
@@ -559,19 +579,19 @@ class CString(ctypes.Union)
         memoryMap = is_valid_address( attr, mappings, _attrType)
         if(not memoryMap)
           # big BUG Badaboum, why did pointer changed validity/value ?
-          log.warning("%s %s not loadable 0x%lx but VALID "%(attrname, attr,attr_obj_address ))
+          log.warning("%s %s not loadable 0x%x but VALID "%(attrname, attr,attr_obj_address ))
           return true
         ref=getRef(_attrType,attr_obj_address)
         if ref:
-          log.debug("%s %s loading from references cache %s/0x%lx"%(attrname,attr,_attrType,attr_obj_address ))
+          log.debug("%s %s loading from references cache %s/0x%x"%(attrname,attr,_attrType,attr_obj_address ))
           attr.contents = ref
           return true
-        log.debug("%s %s loading from 0x%lx (is_valid_address: %s)"%(attrname,attr,attr_obj_address, memoryMap ))
+        log.debug("%s %s loading from 0x%x (is_valid_address: %s)"%(attrname,attr,attr_obj_address, memoryMap ))
         ##### Read the struct in memory and make a copy to play with.
         attr.contents=_attrType.from_buffer_copy(memoryMap.readStruct(attr_obj_address, _attrType ))
         # save that validated and loaded ref and original addr so we dont need to recopy it later
         keepRef( attr.contents, _attrType, attr_obj_address)
-        log.debug("%s %s loaded memcopy from 0x%lx to 0x%lx"%(attrname, attr, attr_obj_address, (getaddress(attr))   ))
+        log.debug("%s %s loaded memcopy from 0x%x to 0x%x"%(attrname, attr, attr_obj_address, (getaddress(attr))   ))
         # recursive validation checks on new struct
         if not bool(attr)
           log.warning('Member %s is null after copy: %s'%(attrname,attr))
@@ -602,11 +622,11 @@ class CString(ctypes.Union)
       if isStructType(attr)
         s=prefix+'"%s": {\t%s%s},\n'%(field, attr.toString(prefix+'\t'),prefix )  
       elif isFunctionType(attr)
-        s=prefix+'"%s": 0x%lx, #(FIELD NOT LOADED)\n'%(field, getaddress(attr) )   # only print address in target space
+        s=prefix+'"%s": 0x%x, #(FIELD NOT LOADED)\n'%(field, getaddress(attr) )   # only print address in target space
       elif isBasicTypeArrayType(attr) ## array of something else than int      
         log.warning(field)
         s=prefix+'"%s": b%s,\n'%(field, repr(array2bytes(attr)) )  
-        #s=prefix+'"%s" :['%(field)+','.join(["0x%lx"%(val) for val in attr ])+'],\n'
+        #s=prefix+'"%s" :['%(field)+','.join(["0x%x"%(val) for val in attr ])+'],\n'
       elif isArrayType(attr) ## array of something else than int/byte
         # go through each elements, we hardly can make a array out of that...
         s=prefix+'"%s" :{'%(field)
@@ -617,20 +637,20 @@ class CString(ctypes.Union)
         #s=prefix+'"%s" :['%(field)+','.join(["%s"%(val) for val in attr ])+'],\n'
       elif isPointerType(attr)
         if not bool(attr) :
-          s=prefix+'"%s": 0x%lx,\n'%(field, getaddress(attr) )   # only print address/null
+          s=prefix+'"%s": 0x%x,\n'%(field, getaddress(attr) )   # only print address/null
         elif not is_address_local(attr) :
-          s=prefix+'"%s": 0x%lx, #(FIELD NOT LOADED)\n'%(field, getaddress(attr) )   # only print address in target space
+          s=prefix+'"%s": 0x%x, #(FIELD NOT LOADED)\n'%(field, getaddress(attr) )   # only print address in target space
         else:
           # we can read the pointers contents # if isBasicType(attr.contents) ?  # if isArrayType(attr.contents) ?
           contents=attr.contents
           if type(self) == type(contents)
-            s=prefix+'"%s": { #(0x%lx) -> %s\n%s},\n'%(field, getaddress(attr), type(attr.contents), prefix) # use struct printer
+            s=prefix+'"%s": { #(0x%x) -> %s\n%s},\n'%(field, getaddress(attr), type(attr.contents), prefix) # use struct printer
           elif isStructType(contents) # do not enter in lists
-            s=prefix+'"%s": { #(0x%lx) -> %s%s},\n'%(field, getaddress(attr), attr.contents.toString(prefix+'\t'),prefix) # use struct printer
+            s=prefix+'"%s": { #(0x%x) -> %s%s},\n'%(field, getaddress(attr), attr.contents.toString(prefix+'\t'),prefix) # use struct printer
           elif isPointerType(contents)
-            s=prefix+'"%s": { #(0x%lx) -> %s%s},\n'%(field, getaddress(attr), self._attrToString(attr.contents, None, None, prefix+'\t'), prefix ) # use struct printer
+            s=prefix+'"%s": { #(0x%x) -> %s%s},\n'%(field, getaddress(attr), self._attrToString(attr.contents, None, None, prefix+'\t'), prefix ) # use struct printer
           else:
-            s=prefix+'"%s": { #(0x%lx) -> %s\n%s},\n'%(field, getaddress(attr), attr.contents, prefix) # use struct printer
+            s=prefix+'"%s": { #(0x%x) -> %s\n%s},\n'%(field, getaddress(attr), attr.contents, prefix) # use struct printer
       elif isCStringPointer(attr)
         s=prefix+'"%s": "%s" , #(CString)\n'%(field, attr.string)  
       elif isBasicType(attr) # basic, ctypes.* !Structure/pointer % CFunctionPointer?
@@ -645,34 +665,34 @@ class CString(ctypes.Union)
       for field,typ in _fieldsTuple:
         attr=getattr(self,field)
         if isStructType(attr)
-          s+='%s (@0x%lx) : {\t%s}\n'%(field,ctypes.addressof(attr), attr )  
+          s+='%s (@0x%x) : {\t%s}\n'%(field,ctypes.addressof(attr), attr )  
         elif isFunctionType(attr)
-            s+='%s (@0x%lx) : 0x%lx (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
+            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
         elif isBasicTypeArrayType(attr)
           try:
-            s+='%s (@0x%lx) : %s\n'%(field,ctypes.addressof(attr), repr(array2bytes(attr)) )  
+            s+='%s (@0x%x) : %s\n'%(field,ctypes.addressof(attr), repr(array2bytes(attr)) )  
           except IndexError,e:
             log.error( 'error while reading %s %s'%(attr.inspect,type(attr)) )
             
         elif isArrayType(attr) ## array of something else than int
-          s+='%s (@0x%lx)  :['%(field, ctypes.addressof(attr),)+','.join(["%s"%(val) for val in attr ])+'],\n'
+          s+='%s (@0x%x)  :['%(field, ctypes.addressof(attr),)+','.join(["%s"%(val) for val in attr ])+'],\n'
           continue
         elif isPointerType(attr)
           if not bool(attr) :
-            s+='%s (@0x%lx) : 0x%lx\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address/null
+            s+='%s (@0x%x) : 0x%x\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address/null
           elif not is_address_local(attr) :
-            s+='%s (@0x%lx) : 0x%lx (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
+            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
           elif type(self) == type(attr.contents) # do not recurse in lists
-            s+='%s (@0x%lx) : (0x%lx) -> {%s}\n'%(field, ctypes.addressof(attr), getaddress(attr), repr(attr.contents) ) # use struct printer
+            s+='%s (@0x%x) : (0x%x) -> {%s}\n'%(field, ctypes.addressof(attr), getaddress(attr), repr(attr.contents) ) # use struct printer
           else:
-            s+='%s (@0x%lx) : (0x%lx) -> {%s}\n'%(field, ctypes.addressof(attr), getaddress(attr), attr.contents) # use struct printer
+            s+='%s (@0x%x) : (0x%x) -> {%s}\n'%(field, ctypes.addressof(attr), getaddress(attr), attr.contents) # use struct printer
         elif isCStringPointer(attr)
           if not bool(attr) :
-            s+='%s (@0x%lx) : 0x%lx\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address/null
+            s+='%s (@0x%x) : 0x%x\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address/null
           elif not is_address_local(attr) :
-            s+='%s (@0x%lx) : 0x%lx (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
+            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
           else:
-            s+='%s (@0x%lx) : %s (CString) \n'%(field,ctypes.addressof(attr), attr.string)  
+            s+='%s (@0x%x) : %s (CString) \n'%(field,ctypes.addressof(attr), attr.string)  
         elif type(attr) is long or type(attr) is int:
           s+='%s : %s\n'%(field, hex(attr) )  
         else:

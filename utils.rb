@@ -68,8 +68,8 @@ module Haystack
     Returns the mapping in which the address stands otherwise.
 =end
   def is_valid_address_value(addr, mappings, structType=nil)
-    for m in mappings
-      if m.include?(add)
+    mappings.each do |m|
+      if m.include?(addr)
         # check if end of struct is ALSO in m
         if (not structType.nil?)
           s = structType.size
@@ -107,8 +107,8 @@ module Haystack
 =end
   def getaddress(obj)
     # check for null pointers
-    if bool(obj)
-      if not obj.respond_to?(:contents)  ## TODO
+    if not obj.nil?
+      if not obj.respond_to?(:address)  ## TODO
         return 0
       end
       return obj.address
@@ -244,8 +244,8 @@ module Haystack
   
   # Checks if an object is a ctypes type object, buitin or struct or enum or union
   # TODO : how about arrays, chararray & stuff
-  def isFFITypes(obj)
-    return (isBasicType(obj) or isStructType(obj) )
+  def isFFIType(obj)
+    return (isBasicType(obj) or isStructType(obj) or isPointerType(obj) )
   end
    
   # Checks if an object is a ctypes basic type, or a python basic type.
@@ -275,7 +275,7 @@ module Haystack
   #  The array should not be null :).
   def isBasicTypeArrayType(obj)
     if isArrayType(obj)
-      if len(obj) == 0:
+      if obj.size == 0
         return false # no len is no BasicType
       end
       if isPointerType(obj[0])
@@ -302,7 +302,11 @@ module Haystack
   #  ''' Checks if an object is our CString.'''
   def isCStringPointer(obj)
     #return obj.kind_of? FFI::TypeDefs[:string]
-    return obj == FFI::TypeDefs[:string]
+    if not isPointerType(obj)
+      return false
+    end
+    #return obj == FFI::TypeDefs[:string]
+    return obj.kind_of? Haystack::CString
   end
 
   #  ''' Checks if an object is a Union type.'''
@@ -345,10 +349,20 @@ module Haystack
 =end
   class NotNull
     def self.include?(obj)
-      return bool(obj)
+      if obj.nil?
+        return false
+      end
+      if isPointerType(obj)
+        if obj.address.nil?
+          return false
+        else
+          return true
+        end
+      end
+      return true
     end
     def self.==(obj)
-      return bool(obj)
+      return self.include? obj
     end
   end
 =begin
@@ -378,6 +392,7 @@ module Logging
 
     def configure_logger_for(classname)
       logger = Logger.new(STDOUT)
+      logger.level = Logger::DEBUG
       logger.progname = classname
       logger
     end
