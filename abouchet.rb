@@ -16,13 +16,13 @@ puts 'file size :'
 puts f.lstat.size?
 
 #load it in memory
-memoryMap_content=Model.bytes2array( IO.read(filename) )
+memoryMap_content=Haystack.bytes2array( IO.read(filename) )
 #data=Model.array2bytes( memoryMap , :uchar)
 
 memoryMap = Haystack::LocalMemoryMapping.new(memoryMap_content, start, stop, 'rwx-', 0x0,0x0,0x0,0x0, '[heap]')
 
 require 'finder'
-structType = Example::Car
+structType = Example::DNA
 finder = Haystack::StructFinder.new([memoryMap])
 finder.find_struct(structType, 0, 10 )
 

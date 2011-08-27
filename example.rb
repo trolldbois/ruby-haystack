@@ -4,6 +4,11 @@ require 'rubygems'
 require 'nice-ffi'
 
 module Example
+
+  class DNA < NiceFFI::Struct
+    layout :id,  :int
+  end
+
   class Brand < NiceFFI::Struct
     layout :name,  :string,
            :magic, :int

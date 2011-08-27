@@ -44,7 +44,7 @@ module Haystack
           log.debug("%s,%s"%[ m,m.permissions ])
         end
         log.debug('look for %s'%structType)
-        outputs.extend(self.find_struct_in( m, structType, hintOffset, maxNum, maxDepth))
+        outputs += self.find_struct_in( m, structType, hintOffset, maxNum, maxDepth)
         # check out
         if outputs.size >= maxNum
           log.debug('Found enough instance. returning results.')
@@ -63,7 +63,7 @@ module Haystack
     #  returns POINTERS to structType instances.
     def find_struct_in(memoryMap, structType, hintOffset=0, maxNum=10, maxDepth=99 )
       # update process mappings
-      log.debug("scanning 0x%lx --> 0x%lx %s"%[memoryMap.start,memoryMap.stop,memoryMap.pathname] )
+      log.debug("scanning %s"%memoryMap )
 
       # where do we look  
       start = memoryMap.start
@@ -81,7 +81,7 @@ module Haystack
         start = start + (hintOffset-align)
       end
       # parse for structType on each aligned word
-      log.debug("checking 0x%lx-0x%lx by increment of %d"%[start, (stop-structlen), plen])
+      log.debug("checking 0x%x-0x%x by increment of %d"%[start, (stop-structlen), plen])
       instance=nil
       t0=Time.new
       p=0
@@ -95,11 +95,11 @@ module Haystack
         end
         instance, validated = self.loadAt( memoryMap, offset, structType, maxDepth) 
         if validated
-          log.debug( "found instance @ 0x%lx"%(offset) )
+          log.debug( "found instance @ 0x%x"%(offset) )
           # do stuff with it.
           outputs << [instance, offset]
         end
-        if output.size >= maxNum
+        if outputs.size >= maxNum
           log.debug('Found enough instance. returning results. find_struct_in')
           break
         end
@@ -111,18 +111,19 @@ module Haystack
     #  loads a haystack ctypes structure from a specific offset. 
     #    return (instance,validated) with instance being the haystack ctypes structure instance and validated a boolean True/False.
     def loadAt( memoryMap, offset, structType, depth=99 )
-      log.debug("Loading %s from 0x%lx "%[structType,offset])
+      log.debug("Loading %s from 0x%x "%[structType,offset])
       
       instance = memoryMap.readStruct(offset,structType)
+      puts instance
       
       # check if data matches
       if ( instance.loadMembers(@mappings, depth) )
-        log.info( "found instance %s @ 0x%lx"%[structType,offset] )
+        log.info( "found instance %s @ 0x%x"%[structType,offset] )
         # do stuff with it.
-        validated=True
+        validated = true
       else
         log.debug("Address not validated")
-        validated=False
+        validated = false
       end
       return instance,validated
     end

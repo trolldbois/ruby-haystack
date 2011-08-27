@@ -1,8 +1,13 @@
 # memorymapping.rb
 
+require 'utils'
+
 module Haystack
 
   class MemoryMapping
+    include Logging
+    attr_reader :start, :stop, :permissions, :offset, :major_device, :minor_device, :inode, :pathname
+  
     def initialize(start, stop, permissions='rwx-', offset=0x0, major_device=0x0, minor_device=0x0, inode=0x0, pathname='MEMORYDUMP')
       @start=start
       @stop=stop
