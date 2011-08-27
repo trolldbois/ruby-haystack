@@ -1,4 +1,8 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2011 Loic Jaquemet loic.jaquemet+ruby@gmail.com
+#
 
 require 'rubygems'
 require 'nice-ffi'
@@ -12,8 +16,7 @@ start=0x09e26000
 stop=0x09e47000
 #filename = '/etc/passwd'
 f=File.new(filename,'r')
-puts 'file size :' 
-puts f.lstat.size?
+puts 'file size : %d' % f.lstat.size?
 
 #load it in memory
 memoryMap_content=Haystack.bytes2array( IO.read(filename) )
@@ -24,13 +27,28 @@ memoryMap = Haystack::LocalMemoryMapping.new(memoryMap_content, start, stop, 'rw
 require 'finder'
 structType = Example::DNA
 finder = Haystack::StructFinder.new([memoryMap])
-finder.find_struct(structType, 0, 10 )
+res = finder.find_struct(structType, 0, 10 )
+
+# check for introspection
+instance,offset = res[0]
 
 
 
 
 
 
+def test_expectedValues
+  structType.expectedValues={1=>1}
+  Example::Car.expectedValues={2=>2}
+  puts structType.expectedValues
+  puts Example::Car.expectedValues
+end
+
+def test_fields
+  Example::Car.fields.each do |x,y| 
+  puts "%s -> %s"% [x.inspect, y.inspect]
+  end
+end
 
 
 

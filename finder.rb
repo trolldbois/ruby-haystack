@@ -1,4 +1,8 @@
-# finder.rb
+#!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2011 Loic Jaquemet loic.jaquemet+ruby@gmail.com
+#
 
 require 'time'
 
@@ -112,10 +116,7 @@ module Haystack
     #    return (instance,validated) with instance being the haystack ctypes structure instance and validated a boolean True/False.
     def loadAt( memoryMap, offset, structType, depth=99 )
       log.debug("Loading %s from 0x%x "%[structType,offset])
-      
-      instance = memoryMap.readStruct(offset,structType)
-      puts instance
-      
+      instance = memoryMap.readStruct(offset,structType)      
       # check if data matches
       if ( instance.loadMembers(@mappings, depth) )
         log.info( "found instance %s @ 0x%x"%[structType,offset] )

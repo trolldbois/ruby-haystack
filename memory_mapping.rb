@@ -1,4 +1,8 @@
-# memorymapping.rb
+#!/usr/bin/env ruby
+# -*- coding: utf-8 -*-
+#
+# Copyright (C) 2011 Loic Jaquemet loic.jaquemet+ruby@gmail.com
+#
 
 require 'utils'
 
