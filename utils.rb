@@ -108,12 +108,16 @@ module Haystack
   def getaddress(obj)
     # check for null pointers
     if obj.nil?
+      puts "obj is mil"
       return nil
     elsif obj.respond_to?(:address)
       return obj.address
     elsif obj.respond_to?(:to_ptr) 
       return obj.to_ptr.address
+    elsif isCStringPointer(obj)
+      return obj.type.address
     else
+      puts 'default obj id nil'
       return nil
     end
   end
@@ -388,7 +392,7 @@ module Logging
 
     def configure_logger_for(classname)
       logger = Logger.new(STDOUT)
-      logger.level = Logger::INFO
+      logger.level = Logger::DEBUG
       logger.progname = classname
       logger
     end

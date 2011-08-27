@@ -241,16 +241,6 @@ module Haystack
     native_type FFI::Type::POINTER
 
     def self.from_native(val, ctx)
-      #puts "CTX : #{ctx.class}"
-      #puts''
-      #if val.null? 
-      #  #puts 'CString val is null'
-      #  return CString.new(val)
-      #end
-      #puts 'val not null'
-      #puts ''
-      # is_valid_address_value(addr, mappings, structType=nil) ??
-      #return [val.get_string(0), val ]
       return CString.new(val)
     end
         
@@ -282,6 +272,9 @@ module Haystack
 
   module LoadableMembers
     include Logging
+
+    MAX_SIZE=255
+
     # we apply class variables to the class instance 'base'
     def self.included(base)
       base.extend HaystackValues 
@@ -293,18 +286,6 @@ module Haystack
       @beep = Hash.new
     end
     
-    # now is the game
-    def loadMembers(mappings, depth)
-      log.debug('loadmembers expectedValues :%s'%[@expectedValues])
-      if not self.isValid(mappings)
-        log.debug('Invalid expectedValues')
-        return false
-      end
-      # else load stuff
-      
-      return true
-    end
-
 =begin
       Checks if each members has coherent data 
 
@@ -433,7 +414,7 @@ module Haystack
         myaddress = getaddress(attr)
         if not self.expectedValues.nil? and self.expectedValues.include?(attrname) # TODO
           # test if NULL is an option
-          if not myaddress.nil? # TODO address not null
+          if myaddress.nil? # address is null
             if not ( (self.expectedValues[attrname].include? nil ) or
                      (self.expectedValues[attrname].include? 0) )
               log.debug('%s %s %s isNULL and that is NOT EXPECTED'%[attrname, attrtype, attr.inspect ])
@@ -443,7 +424,7 @@ module Haystack
             return true
           end
         end
-        if (not myaddress.nil?) and ( not is_valid_address_value( myaddress, mappings) )   
+        if (not myaddress.nil?) and ( is_valid_address_value( myaddress, mappings) == false)   
           log.debug('%s %s %s 0x%x INVALID'%[attrname,attrtype, attr.inspect ,myaddress])
           return false
         end
@@ -454,7 +435,7 @@ module Haystack
       if isPointerType(attr)
         if not self.expectedValues.nil? and self.expectedValues.include?(attrname)
           # test if NULL is an option
-          if not attr.nil?
+          if attr.nil?
             if not ( (self.expectedValues[attrname].include? nil ) or
                      (self.expectedValues[attrname].include? 0) )
               log.debug('%s %s %s isNULL and that is NOT EXPECTED'%[attrname,attrtype,attr.inspect ])
@@ -474,7 +455,7 @@ module Haystack
           _attrType = attrtype.type
         end
         #log.debug(" ihave decided on pointed attrType to be %s"%(_attrType))
-        if ( not is_valid_address( attr, mappings, _attrType) ) and (getaddress(attr) != 0)
+        if (not getaddress(attr).nil?) and ( is_valid_address( attr, mappings, _attrType) == false)  
           log.debug('%s %s %s 0x%x INVALID'%[attrname,attrtype, attr.inspect ,getaddress(attr)])
           return false
         end
@@ -492,18 +473,17 @@ module Haystack
     end
 
 =begin
-    def _isLoadableMember(self, attr)
-      '''
         Check if the member is loadable.
         A c_void_p cannot be load generically, You have to take care of that.
-      '''
-      attrtype=type(attr)
-      return ( (isPointerType(attr) and ( attrtype in self.classRef) and bool(attr) and not isFunctionType(attr) ) or
+=end
+    def _isLoadableMember(attr)
+      return ( (not attr.nil?) and (isPointerType(attr) and # ( Haystack.hasRef?(attr.class) )  and
+                                        not isFunctionType(attr) ) or
                 isStructType(attr)  or isCStringPointer(attr) or
                 (isArrayType(attr) and not isBasicTypeArrayType(attr) ) ) # should we iterate on Basictypes ? no
-
-    def loadMembers(self, mappings, maxDepth)
-      ''' 
+    end
+    
+=begin
       The validity of the memebrs will be assessed.
       Each members that can be ( structures, pointers), will be evaluated for validity and loaded recursively.
       
@@ -511,122 +491,154 @@ module Haystack
       @param maxDepth: limitation of depth after which the loading/validation will stop and return results.
 
       @returns true if everything has been loaded, false if something went wrong. 
-      '''
-      if maxDepth == 0:
+=end
+    def loadMembers(mappings, maxDepth)
+      if maxDepth == 0
         log.debug('Maximum depth reach. Not loading any deeper members.')
-        log.debug('Struct partially LOADED. %s not loaded'%(self.__class__.__name__))
+        log.debug('Struct partially LOADED. %s not loaded'%(self.class))
         return true
+      end
       maxDepth-=1
-      log.debug('%s loadMembers'%(self.__class__.__name__))
+      log.debug('%s loadMembers'%(self.class))
       if not self.isValid(mappings)
         return false
-      log.debug('%s do loadMembers ----------------'%(self.__class__.__name__))
+      end
+      log.debug('%s do loadMembers ----------------'%(self.class) )
       ## go through all members. if they are pointers AND not null AND in valid memorymapping AND a struct type, load them as struct pointers
-      _fieldsTuple = [ (f[0],f[1]) for f in self._fields_] 
-      for attrname,attrtype in _fieldsTuple:
-        attr=getattr(self,attrname)
+      self.fields.map.each do | attrname,attrtype | 
+        attr=self[attrname]
         # shorcut ignores
-        if attrname in self.expectedValues:
+        if not self.expectedValues.nil? and  self.expectedValues.include?(attrname)
           # shortcut
-          if self.expectedValues[attrname] is IgnoreMember:
+          if self.expectedValues[attrname] == IgnoreMember
             # make an new empty ctypes
             setattr(self, attrname, attrtype())
-            return true      
-        try:
+            ## TODO DEBUG, put not supported for FFI::StructByValue
+            #self[attrname] = attrtype.new(FFI::Buffer.new(attrtype))
+            # zero the memory ?
+            return true
+          end
+        end
+        begin
           if not self._loadMember(attr,attrname,attrtype,mappings, maxDepth)
             return false
-        except ValueError, e:
+          end
+        rescue RangeError
           log.error( 'maxDepth was %d'% maxDepth)
-          raise e
-
-      log.debug('%s END loadMembers ----------------'%(self.__class__.__name__))
+          throw $!
+        end
+      end
+      log.debug('%s END loadMembers ----------------'%[self.class])
       return true
-      
-    def _loadMember(self,attr,attrname,attrtype,mappings, maxDepth)
+    end
+
+    def _loadMember(attr,attrname,attrtype,mappings, maxDepth)
       # skip static basic data members
       if not self._isLoadableMember(attr)
-        log.debug("%s %s not loadable  bool(attr) = %s"%(attrname,attrtype, bool(attr)) )
+        log.debug("%s %s not loadable  bool(attr) = %s"%[attrname,attrtype, attr.nil?] )
         return true
+      end
       # load it, fields are valid
       if isStructType(attr)
-        log.debug('%s %s is STRUCT'%(attrname,attrtype) )
+        log.debug('%s %s is STRUCT'%[attrname,attrtype] )
         if not attr.loadMembers(mappings, maxDepth+1)
-          log.debug("%s %s not valid, erreur while loading inner struct "%(attrname,attrtype) )
+          log.debug("%s %s not valid, erreur while loading inner struct "%[attrname,attrtype] )
           return false
-        log.debug("%s %s inner struct LOADED "%(attrname,attrtype) )
+        end
+        log.debug("%s %s inner struct LOADED "%[attrname,attrtype] )
         return true
+      end
       # maybe an array
       if isBasicTypeArrayType(attr)
         return true
+      end
       if isArrayType(attr)
-        log.debug('%s is arraytype %s recurse load'%(attrname,attr.inspect) )#
-        attrLen=len(attr)
-        if attrLen == 0:
+        log.debug('%s is arraytype %s recurse load'%([attrname,attr] ) )#
+        attrLen = attr.size
+        if attrLen == 0
           return true
-        elType=type(attr[0])
-        for i in range(0,attrLen)
-          if not self._loadMember(attr[i], "%s[%d]"%(attrname,i), elType, mappings, maxDepth)
+        end
+        elType=attr[0].class
+        range(0..attrLen).each do |i|
+          if not self._loadMember(attr[i], "%s[%d]"%[attrname,i], elType, mappings, maxDepth)
             return false
+          end
+        end
         return true
+      end
       # we have PointerType here . Basic or complex
       # exception cases
-      if isCStringPointer(attr) : 
+      if isCStringPointer(attr) 
         # can't use basic c_char_p because we can't load in foreign memory
-        attr_obj_address = getaddress(attr.ptr)
-        setattr(self,'__'+attrname,attr_obj_address)
-        if not bool(attr_obj_address)
-          log.debug('%s %s is a CString, the pointer is null (validation must have occurred earlier) '%(attrname, attr))
+        attr_obj_address = getaddress(attr)
+        #setattr(self,'__'+attrname,attr_obj_address) ## TODO
+        if attr_obj_address.nil?
+          log.debug('%s %s is a CString, the pointer is null (validation must have occurred earlier) '%[attrname, attr])
           return true
+        end
         memoryMap = is_valid_address_value(attr_obj_address, mappings)
-        if not memoryMap :
+        if not memoryMap
           log.warning('Error on addr while fetching a CString. should not happen')
           return false
-        MAX_SIZE=255
-        log.debug("%s %s is defined as a CString, loading from 0x%x is_valid_address %s"%(
-                        attrname,attr,attr_obj_address, is_valid_address(attr,mappings) ))
-        txt,full = memoryMap.readCString(attr_obj_address, MAX_SIZE )
-        if not full:
+        end
+        log.debug("%s %s is defined as a CString, loading from 0x%x is_valid_address %s"%[
+                        attrname,attr,attr_obj_address, is_valid_address(attr,mappings) ])
+        strp,full = memoryMap.readCString(attr_obj_address, MAX_SIZE )
+        if not full
           log.warning('buffer size was too small for this CString')
-        attr.string = txt
+        end
+        #attr.type.put_string(txt) # TODO
+        self[attrname] = strp.type
         return true
-      elif isPointerType(attr) # not functionType, it's not loadable
+      elsif isPointerType(attr) # not functionType, it's not loadable
         _attrname='_'+attrname
-        _attrType=self.classRef[attrtype]
-        attr_obj_address=getaddress(attr)
-        setattr(self,'__'+attrname,attr_obj_address)
+        _attrType = self.classRef[attrtype]
+        attr_obj_address = getaddress(attr)
+        #setattr(self,'__'+attrname,attr_obj_address) ## TODO
         ####
         # memcpy and save objet ref + pointer in attr
         # we know the field is considered valid, so if it's not in memory_space, we can ignore it
         memoryMap = is_valid_address( attr, mappings, _attrType)
         if(not memoryMap)
           # big BUG Badaboum, why did pointer changed validity/value ?
-          log.warning("%s %s not loadable 0x%x but VALID "%(attrname, attr,attr_obj_address ))
+          log.warning("%s %s not loadable 0x%x but VALID "%[attrname, attr,attr_obj_address ])
           return true
-        ref=getRef(_attrType,attr_obj_address)
-        if ref:
-          log.debug("%s %s loading from references cache %s/0x%x"%(attrname,attr,_attrType,attr_obj_address ))
-          attr.contents = ref
+        end
+        ref = Haystack::getRef(_attrType,attr_obj_address)
+        if ref
+          log.debug("%s %s loading from references cache %s/0x%x"%[attrname,attr,_attrType,attr_obj_address ])
+          #attr.contents = ref ## TODO
+          self[:attrname] = ref
           return true
-        log.debug("%s %s loading from 0x%x (is_valid_address: %s)"%(attrname,attr,attr_obj_address, memoryMap ))
+        end
+        log.debug("%s %s loading from 0x%x (is_valid_address: %s)"%[attrname,attr,attr_obj_address, memoryMap ])
         ##### Read the struct in memory and make a copy to play with.
-        attr.contents=_attrType.from_buffer_copy(memoryMap.readStruct(attr_obj_address, _attrType ))
+        contents = memoryMap.readStruct(attr_obj_address, _attrType )
+        ptr = NiceFFI::TypedPointer.new(contents)
+        self[attrname] = ptr
         # save that validated and loaded ref and original addr so we dont need to recopy it later
-        keepRef( attr.contents, _attrType, attr_obj_address)
-        log.debug("%s %s loaded memcopy from 0x%x to 0x%x"%(attrname, attr, attr_obj_address, (getaddress(attr))   ))
+        keepRef( contents, _attrType, attr_obj_address)
+        log.debug("%s %s loaded memcopy from 0x%x to 0x%x"%[attrname, attr, attr_obj_address, (getaddress(attr))   ])
+        attr=self[attrname]
         # recursive validation checks on new struct
-        if not bool(attr)
-          log.warning('Member %s is null after copy: %s'%(attrname,attr))
+        if attr.nil?
+          log.warning('Member %s is null after copy: %s'%[attrname,attr])
           return true
+        end
         # go and load the pointed struct members recursively
-        if not attr.contents.loadMembers(mappings, maxDepth)
+        if not attr.type.loadMembers(mappings, maxDepth)
           log.debug('member %s was not loaded'%(attrname))
           #invalidate the cache ref.
           delRef( _attrType, attr_obj_address)
           return false
+        end
         return true
+      end
       #TATAFN
       return true
+    end
     
+=begin    
     def toString(self,prefix='')
       ''' Returns a string formatted description of this Structure. 
       The returned string should be python-compatible...

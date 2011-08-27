@@ -46,8 +46,8 @@ end
 
 
 filename = 'example.heap'
-start=0x09e26000
-stop=0x09e47000
+start=0x09835000
+stop=0x09856000
 #filename = '/etc/passwd'
 f=File.new(filename,'r')
 puts 'file size : %d' % f.lstat.size?
@@ -72,7 +72,7 @@ puts "found #{res.size} results"
 # check for introspection
 instance,offset = res[0]
 
-puts structType.expectedValues
+puts instance
 
 
 require 'example'

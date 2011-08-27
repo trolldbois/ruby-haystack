@@ -28,6 +28,9 @@ module Haystack
     end
     
     def include?( vaddr )
+      if vaddr.nil? 
+        return false
+      end
       @start <= vaddr and vaddr <= @stop
     end
 
@@ -38,6 +41,34 @@ module Haystack
     #def display(port=$>)
     #  port.write "#{@start}-#{@stop} #{@pathname} (#{@permissions})"
     #end
+    def readCString(address, max_size, chunk_length=256)
+      ''' identic to process.readCString '''
+      string = ''
+      size = 0
+      truncated = false
+      while true
+        done = false
+        data = self.readBytes(address, chunk_length)
+        if data.include?("\0")
+          done = true
+          data = data[0..(data.index("\0"))]
+        end
+        if max_size <= size+chunk_length
+          data = data[0..(max_size-size)]
+          string << data
+          truncated = true
+          break
+        end
+        string << data
+        if done
+          break
+        end
+        size += chunk_length
+        address += chunk_length
+      end
+      ret = Haystack::CString.new( FFI::MemoryPointer.from_string(string) )
+      return [ret, truncated]
+    end
   end
 
   class LocalMemoryMapping < MemoryMapping
