@@ -10,6 +10,8 @@ log = Logger.new(STDOUT)
 module Haystack
   
   class StructFinder
+    include Logging
+    
     #Generic structure finder.
     #Will search a structure defined by it's pointer and other constraints.
     #Address space is defined by  mappings.
@@ -39,7 +41,7 @@ module Haystack
           log.warning("Invalid permission for memory %s"%m)
           next
         else
-          log.debug("%s,%s"%[ m,m[:permissions] ])
+          log.debug("%s,%s"%[ m,m.permissions ])
         end
         log.debug('look for %s'%structType)
         outputs.extend(self.find_struct_in( m, structType, hintOffset, maxNum, maxDepth))
@@ -61,11 +63,11 @@ module Haystack
     #  returns POINTERS to structType instances.
     def find_struct_in(memoryMap, structType, hintOffset=0, maxNum=10, maxDepth=99 )
       # update process mappings
-      log.debug("scanning 0x%lx --> 0x%lx %s"%[memoryMap[:start],memoryMap[:stop],memoryMap[:pathname]] )
+      log.debug("scanning 0x%lx --> 0x%lx %s"%[memoryMap.start,memoryMap.stop,memoryMap.pathname] )
 
       # where do we look  
-      start = memoryMap[:start]
-      stop = memoryMap[:stop]
+      start = memoryMap.start
+      stop = memoryMap.stop
       plen = FFI::Type::POINTER.size
       structlen = structType.size
       #ret vals
@@ -147,7 +149,7 @@ module Haystack
       # approximation
       @_update_nb_steps = 0
       @targetMappings.each do |m| # get total number of words.
-        @_update_nb_steps += ((m[:stop]-m[:start])/4)
+        @_update_nb_steps += ((m.stop-m.start)/4)
       end
       @_update_i = 0
     end

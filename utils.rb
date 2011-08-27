@@ -9,9 +9,37 @@ module Haystack
 
   def Haystack.hasValidPermissions(memmap)
     #''' memmap must be 'rw..' or shared '...s' '''
-    perms = memmap[:permissions]
+    perms = memmap.permissions
     return ((perms[0].chr == 'r' and perms[1].chr == 'w') or (perms[3].chr == 's') )
   end
   
 end
 
+module Logging
+  def log
+    @logger ||= Logging.logger_for(self.class.name)
+  end
+
+  # Use a hash class-ivar to cache a unique Logger per class:
+  @loggers = {}
+
+  class << self
+    def logger_for(classname)
+      @loggers[classname] ||= configure_logger_for(classname)
+    end
+
+    def configure_logger_for(classname)
+      logger = Logger.new(STDOUT)
+      logger.progname = classname
+      logger
+    end
+    
+  end
+
+end
+
+class Logger    
+  def warning x
+    warn x
+  end
+end

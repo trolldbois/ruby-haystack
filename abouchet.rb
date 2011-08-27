@@ -16,10 +16,29 @@ puts 'file size :'
 puts f.lstat.size?
 
 #load it in memory
-memoryMap=Model.bytes2array( IO.read(filename) )
+memoryMap_content=Model.bytes2array( IO.read(filename) )
 #data=Model.array2bytes( memoryMap , :uchar)
 
-mmap = Haystack::LocalMemoryMapping.new(memoryMap, start, stop, '-rwx', 0x0,0x0,0x0,0x0, '[heap]')
+memoryMap = Haystack::LocalMemoryMapping.new(memoryMap_content, start, stop, 'rwx-', 0x0,0x0,0x0,0x0, '[heap]')
+
+require 'finder'
+structType = Example::Car
+finder = Haystack::StructFinder.new([memoryMap])
+finder.find_struct(structType, 0, 10 )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def test_mmap
   #try to map Car
@@ -30,9 +49,4 @@ def test_mmap
   out=filename+'out'
   File.new(out,'w').write(data)
 end
-
-require 'finder'
-structType = Example::Car
-finder = Haystack::StructFinder.new([memoryMap])
-finder.find_struct(structType, 0, 10 )
 
