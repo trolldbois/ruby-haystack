@@ -67,9 +67,6 @@ module Haystack
         size += chunk_length
         address += chunk_length
       end
-      #ret = Haystack::CString.new( FFI::MemoryPointer.from_string(string) , :autorelease => false)
-      #ret = Haystack::CString.fromAddress( FFI::Pointer.new(address) , string.size)
-      #puts "dans readCString #{ret.size} #{ret.pointer} #{ret.pointer.size}"
       return [string, truncated]
     end
   end
@@ -171,7 +168,12 @@ module Haystack
     def readStruct(vaddr, struct)
       laddr = self.vtop(vaddr)
       #car = Example::Car.new( ptr , :autorelease => false)
-      struct = struct.new( @memoryPointer+laddr )#, :autorelease => false) # true
+      begin
+        struct = struct.new( @memoryPointer+laddr )#, :autorelease => false) # true
+      rescue NoMethodError
+        log.error('No initialize on that Struct. probably a Typed POinter huh... %s'%struct)
+        return nil
+      end
       return struct
     end
     

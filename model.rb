@@ -610,8 +610,14 @@ module Haystack
         self[attrname] = Haystack::CString.new( FFI::MemoryPointer.from_string(strp) )
         return true
       elsif isPointerType(attr) # not functionType, it's not loadable
-        _attrname='_'+attrname
-        _attrType = self.classRef[attrtype]
+        #_attrname='_'+attrname
+        _attrType = self.fields[attrname]# attrtype.type
+        ###
+        ### TODO : If you can get me the nested type of this pointer field, i'll give you a kandy.
+        ### ruby-ffi actually destroy information passed to the layout.
+        ###
+        #puts "---#{attr} #{attrname} #{attrtype} #{_attrType}"
+        #puts "---#{attrtype[:orig_field]} "
         attr_obj_address = getaddress(attr)
         #setattr(self,'__'+attrname,attr_obj_address) ## TODO
         ####
@@ -633,6 +639,9 @@ module Haystack
         log.debug("%s %s loading from 0x%x (is_valid_address: %s)"%[attrname,attr,attr_obj_address, memoryMap ])
         ##### Read the struct in memory and make a copy to play with.
         contents = memoryMap.readStruct(attr_obj_address, _attrType )
+        if contents.nil?
+          return false
+        end
         ptr = NiceFFI::TypedPointer.new(contents, :autorelease => false)
         self[attrname] = ptr
         # save that validated and loaded ref and original addr so we dont need to recopy it later

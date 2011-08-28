@@ -1,0 +1,9 @@
+Ruby port of the python-haystack memory search.
+
+
+As long as there is no way to have a working TypedPointer in a StructLayout, 
+that can be use to load Struct * on a generic fashion. there is no chance of
+that port to be useful.
+
+Can"t make Nice-FFI actually useful on Layout...
+

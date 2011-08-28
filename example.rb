@@ -11,9 +11,11 @@ require 'model'
 
 #--- example of a generated struct
 module Example
+  #extend NiceFFI::Library
   # Use our CString
   #CString = :pointer
   #string = :CString
+  
   
   class DNA < NiceFFI::Struct
     layout :id,  :uint,
@@ -23,9 +25,32 @@ module Example
 
   class Brand < NiceFFI::Struct
     layout :brandmagic, :uint,
-           :brandname,  :string # string
-           
+           :brandname,  :string # string           
   end
+
+  class Brand__Ptr < NiceFFI::TypedPointer
+    extend FFI::DataConverter
+    native_type FFI::Type::POINTER
+    class << self
+    attr_accessor :nestedtype
+    end
+    self.nestedtype = Brand
+
+    def self.from_native(val, ctx)
+      puts val.size
+      return FFI::Pointer.new(val)
+      puts val
+      puts self.nestedtype
+
+      nested = self.new self.nestedtype
+      ret = nested.wrap(val)
+      puts ret
+      
+      return ret
+    end
+  end
+
+  FFI.typedef(Brand__Ptr, :bpointer)
 
   class Car < NiceFFI::Struct
     layout :magic1, :uint,
@@ -38,6 +63,7 @@ module Example
            :a5,  :uint,
            :name2, [:uchar , 255],
            :brand, Example::Brand
+           #:p_brand, :bpointer
   end
   #:char_array 
 end

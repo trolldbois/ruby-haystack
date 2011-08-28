@@ -46,8 +46,8 @@ end
 
 
 filename = 'example.heap'
-start=0x09835000
-stop=0x09856000
+start=0x09dac000
+stop=0x09dcd000
 #filename = '/etc/passwd'
 f=File.new(filename,'r')
 puts 'file size : %d' % f.lstat.size?

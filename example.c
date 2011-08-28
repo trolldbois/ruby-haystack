@@ -43,6 +43,14 @@ struct brand {
 } ;
 typedef struct brand Brand;
 
+typedef struct sister Sister;
+
+struct sister {
+    int id;
+    Sister * sister;
+} ;
+//typedef struct sister Sister;
+
 struct car {
     int magic1;
     char * name;
@@ -54,6 +62,8 @@ struct car {
     int a5;
     char name2[255];
     Brand brand;
+    Brand * p_brand;
+    Sister * sis;
 } ;
 
 typedef struct car Car;
@@ -62,6 +72,7 @@ typedef struct car Car;
 int main(int argc, char* argv)
 {
     Car * car;
+    Sister * s1,*s2,*s3;
     char name[] = "my nice little car";
     
     car = (Car *)malloc(sizeof(Car) );
@@ -76,10 +87,29 @@ int main(int argc, char* argv)
     car->a3 = VALUE_A3;
     car->a4 = VALUE_A4;
     car->a5 = VALUE_A5;
+    printf("car has been initialized\n");
     car->brand.brandname = (char *)malloc(256);
     strcpy(car->brand.brandname, "Peugeot");
     car->brand.brandmagic = MAGIC ;
-    printf("member have been initialized\n");
+    printf("brand has been initialized\n");
+    car->p_brand = (Brand *)malloc(sizeof(Brand));
+    car->p_brand->brandname = (char *)malloc(256);
+    strcpy(car->p_brand->brandname, "Citroen");
+    car->p_brand->brandmagic = MAGIC ;
+    printf("p_brand has been initialized\n");
+    s1 = (Sister *)malloc(sizeof(Sister));
+    s2 = (Sister *)malloc(sizeof(Sister));
+    s3 = (Sister *)malloc(sizeof(Sister));
+    s1->id = 1;
+    s1->sister = s2;
+    s2->id = 2;
+    s2->sister = s3;
+    s3->id = 3;
+    s3->sister = s1;
+    car->sis = s1;
+    printf("sisters has been initialized\n");
+    
+
     
     while(1)
       sleep(10000);
