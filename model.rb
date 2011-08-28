@@ -233,8 +233,10 @@ module Haystack
 =end
   
   class CString < NiceFFI::TypedPointer
+        
+    # you"d rather be sure to call that AFTER having copied it
     def string
-      self.type.read_string(0)
+      self.type.read_string()
     end
 
     def address
@@ -245,14 +247,19 @@ module Haystack
       self.type
     end
     
-  end
+    
+#  end
 
-  class CStringConverter #< FFI::Pointer #(ctypes.Union)
+#  class CStringConverter #< FFI::Pointer #(ctypes.Union)
     extend FFI::DataConverter
     native_type FFI::Type::POINTER
 
     def self.from_native(val, ctx)
       return CString.new(val)
+    end
+
+    def self.to_native(val, ctx)
+      return val.type #FFI::MemoryPointer.from_string('toto')#CString.new(val)
     end
     
   end
@@ -268,7 +275,8 @@ module Haystack
   pass
 =end
 
-  FFI.typedef(Haystack::CStringConverter, :string)
+  #FFI.typedef(Haystack::CStringConverter, :string)
+  FFI.typedef(Haystack::CString, :string)
   #FFI.typedef(FFI::StrPtrConverter, :string)
   #FFI::TypeDefs[:CString] = Haystack::CString
 
@@ -599,7 +607,7 @@ module Haystack
           log.warning('buffer size was too small for this CString')
         end
         #attr.type.put_string(txt) # TODO
-        self[attrname] = strp.type
+        self[attrname] = Haystack::CString.new( FFI::MemoryPointer.from_string(strp) )
         return true
       elsif isPointerType(attr) # not functionType, it's not loadable
         _attrname='_'+attrname
@@ -625,7 +633,7 @@ module Haystack
         log.debug("%s %s loading from 0x%x (is_valid_address: %s)"%[attrname,attr,attr_obj_address, memoryMap ])
         ##### Read the struct in memory and make a copy to play with.
         contents = memoryMap.readStruct(attr_obj_address, _attrType )
-        ptr = NiceFFI::TypedPointer.new(contents)
+        ptr = NiceFFI::TypedPointer.new(contents, :autorelease => false)
         self[attrname] = ptr
         # save that validated and loaded ref and original addr so we dont need to recopy it later
         keepRef( contents, _attrType, attr_obj_address)
@@ -705,44 +713,44 @@ module Haystack
 =end
 
     def to_string
-      s = self.inspect+'\n'
+      s = "%s\n"%self.inspect
       self.fields.map.each do | field,typ|
         attr = self[field]
         if isStructType(attr)
-          s+='%s (@0x%x) : {\t%s}\n'%[field,attr.to_ptr.address, attr ]
+          s+="%s (@0x%x) : {\t%s}\n"%[field,attr.to_ptr.address, attr ]
         elsif isFunctionType(attr)
-            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%[field,attr.address, getaddress(attr) ]   # only print address in target space
+            s+="%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n"%[field,attr.address, getaddress(attr) ]   # only print address in target space
         elsif isBasicTypeArrayType(attr)
           begin
-            s+='%s (@0x%x) : %s\n'%[field,attr.to_ptr, attr.to_s]   
+            s+="%s (@0x%x) : %s\n"%[field,attr.to_ptr, attr.to_s]   
           rescue IndexError
-            log.error( 'error while reading %s %s'%[attr.inspect,attr.class] )
+            log.error( "error while reading %s %s"%[attr.inspect,attr.class] )
           end
         elsif isArrayType(attr) ## array of something else than int
-          s+='%s (@0x%x)  :['%[field, attr.address] + attr.join(',')+'],\n'
+          s+="%s (@0x%x)  :["%[field, attr.address] + attr.join(",")+"],\n"
           next
         elsif isPointerType(attr)
           if attr.nil?
-            s+='%s (@0x%x) : 0x%x\n'%[field,attr.address, getaddress(attr) ]   # only print address/null
+            s+="%s (@0x%x) : 0x%x\n"%[field,attr.address, getaddress(attr) ]   # only print address/null
           elsif not is_address_local(attr) 
-            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%[field,attr.address, getaddress(attr) ]   # only print address in target space
+            s+="%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n"%[field,attr.address, getaddress(attr) ]   # only print address in target space
           elsif self.class == attr.class # do not recurse in lists
-            s+='%s (@0x%x) : (0x%x) -> {%s}\n'%[field, attr.address, getaddress(attr), attr.inspect ] # use struct printer
+            s+="%s (@0x%x) : (0x%x) -> {%s}\n"%[field, attr.address, getaddress(attr), attr.inspect ] # use struct printer
           else
-            s+='%s (@0x%x) : (0x%x) -> {%s}\n'%[field, attr.address, getaddress(attr), attr.inspect] # use struct printer
+            s+="%s (@0x%x) : (0x%x) -> {%s}\n"%[field, attr.address, getaddress(attr), attr.inspect] # use struct printer
           end
         elsif isCStringPointer(attr)
           if attr.nil?
-            s+='%s (@0x%x) : 0x%x\n'%[field,attr.type.address, getaddress(attr) ]   # only print address/null
+            s+="%s (@0x%x) : 0x%x\n"%[field,attr.type.address, getaddress(attr) ]   # only print address/null
           elsif not is_address_local(attr)
-            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%[field, attr.type.address, getaddress(attr) ]   # only print address in target space
+            s+="%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n"%[field, attr.type.address, getaddress(attr) ]   # only print address in target space
           else
-            s+='%s (@0x%x) : %s (CString) \n'%[field,attr.type.address, attr.string]
+            s+="%s (@0x%x) : %s (CString) \n"%[field,attr.type.address, attr.string]
           end
         elsif attr.kind_of? Numeric
-          s+='%s : %s\n'%[field, attr.to_s(16) ]
+          s+="%s : %s\n"%[field, attr.to_s(16) ]
         else
-          s+='%s : %s\n'%[field, attr.inspect ]  
+          s+="%s : %s\n"%[field, attr.inspect ]  
         end
       end
       return s

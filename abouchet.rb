@@ -72,14 +72,9 @@ puts "found #{res.size} results"
 # check for introspection
 instance,offset = res[0]
 
-puts instance.to_string
+#puts instance.to_string
+puts instance.name
+puts '------------'
+puts instance.name.string 
 
-
-require 'example'
-p=FFI::MemoryPointer.new(Example::Car,1)
-car=Example::Car.new(p)
-car.brand.brandname
-
-
-return
 
