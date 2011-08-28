@@ -27,7 +27,7 @@ module Haystack
     return buf
   end
 
-  def array2bytes(array, type)
+  def array2bytes(array, typ=nil)
     buf = String.new('') #?
     (0..array.size-1).each do |offset|
       buf << array.get_uchar(offset)
@@ -94,9 +94,7 @@ module Haystack
     if addr.nil?
       return false
     end
-    process = Struct.new(:pid)
-    p = process.new(os.getpid())
-    mappings = readProcessMappings(p) # memory_mapping
+    mappings = readProcessMappings(Process) # memory_mapping
     return is_valid_address(obj,mappings, structType)
   end
 
@@ -392,7 +390,7 @@ module Logging
 
     def configure_logger_for(classname)
       logger = Logger.new(STDOUT)
-      logger.level = Logger::DEBUG
+      logger.level = Logger::INFO
       logger.progname = classname
       logger
     end

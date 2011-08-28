@@ -65,14 +65,14 @@ car = structType.new(memoryMap.pointer)
 
 require 'finder'
 finder = Haystack::StructFinder.new([memoryMap])
-res = finder.find_struct(structType, 0, 10 )
+res = finder.find_struct(structType, 0, 1 )
 
 puts "found #{res.size} results"
 
 # check for introspection
 instance,offset = res[0]
 
-puts instance
+puts instance.to_string
 
 
 require 'example'

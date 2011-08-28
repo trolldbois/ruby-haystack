@@ -233,6 +233,17 @@ module Haystack
 =end
   
   class CString < NiceFFI::TypedPointer
+    def string
+      self.type.read_string(0)
+    end
+
+    def address
+      self.type.address
+    end
+
+    def pointer
+      self.type
+    end
     
   end
 
@@ -243,7 +254,7 @@ module Haystack
     def self.from_native(val, ctx)
       return CString.new(val)
     end
-        
+    
   end
 =begin
   _fields_=[
@@ -691,47 +702,53 @@ module Haystack
       else: # wtf ?
         s=prefix+'"%s": %s, # Unknown/bug DEFAULT repr\n'%(field, attr.inspect )  
       return s
+=end
 
-    def __str__(self)
-      s=repr(self)+'\n'
-      _fieldsTuple = [ (f[0],f[1]) for f in self._fields_] 
-      for field,typ in _fieldsTuple:
-        attr=getattr(self,field)
+    def to_string
+      s = self.inspect+'\n'
+      self.fields.map.each do | field,typ|
+        attr = self[field]
         if isStructType(attr)
-          s+='%s (@0x%x) : {\t%s}\n'%(field,ctypes.addressof(attr), attr )  
-        elif isFunctionType(attr)
-            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
-        elif isBasicTypeArrayType(attr)
-          try:
-            s+='%s (@0x%x) : %s\n'%(field,ctypes.addressof(attr), repr(array2bytes(attr)) )  
-          except IndexError,e:
-            log.error( 'error while reading %s %s'%(attr.inspect,type(attr)) )
-            
-        elif isArrayType(attr) ## array of something else than int
-          s+='%s (@0x%x)  :['%(field, ctypes.addressof(attr),)+','.join(["%s"%(val) for val in attr ])+'],\n'
-          continue
-        elif isPointerType(attr)
-          if not bool(attr) :
-            s+='%s (@0x%x) : 0x%x\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address/null
-          elif not is_address_local(attr) :
-            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
-          elif type(self) == type(attr.contents) # do not recurse in lists
-            s+='%s (@0x%x) : (0x%x) -> {%s}\n'%(field, ctypes.addressof(attr), getaddress(attr), repr(attr.contents) ) # use struct printer
-          else:
-            s+='%s (@0x%x) : (0x%x) -> {%s}\n'%(field, ctypes.addressof(attr), getaddress(attr), attr.contents) # use struct printer
-        elif isCStringPointer(attr)
-          if not bool(attr) :
-            s+='%s (@0x%x) : 0x%x\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address/null
-          elif not is_address_local(attr) :
-            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%(field,ctypes.addressof(attr), getaddress(attr) )   # only print address in target space
-          else:
-            s+='%s (@0x%x) : %s (CString) \n'%(field,ctypes.addressof(attr), attr.string)  
-        elif type(attr) is long or type(attr) is int:
-          s+='%s : %s\n'%(field, hex(attr) )  
-        else:
-          s+='%s : %s\n'%(field, attr.inspect )  
+          s+='%s (@0x%x) : {\t%s}\n'%[field,attr.to_ptr.address, attr ]
+        elsif isFunctionType(attr)
+            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%[field,attr.address, getaddress(attr) ]   # only print address in target space
+        elsif isBasicTypeArrayType(attr)
+          begin
+            s+='%s (@0x%x) : %s\n'%[field,attr.to_ptr, attr.to_s]   
+          rescue IndexError
+            log.error( 'error while reading %s %s'%[attr.inspect,attr.class] )
+          end
+        elsif isArrayType(attr) ## array of something else than int
+          s+='%s (@0x%x)  :['%[field, attr.address] + attr.join(',')+'],\n'
+          next
+        elsif isPointerType(attr)
+          if attr.nil?
+            s+='%s (@0x%x) : 0x%x\n'%[field,attr.address, getaddress(attr) ]   # only print address/null
+          elsif not is_address_local(attr) 
+            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%[field,attr.address, getaddress(attr) ]   # only print address in target space
+          elsif self.class == attr.class # do not recurse in lists
+            s+='%s (@0x%x) : (0x%x) -> {%s}\n'%[field, attr.address, getaddress(attr), attr.inspect ] # use struct printer
+          else
+            s+='%s (@0x%x) : (0x%x) -> {%s}\n'%[field, attr.address, getaddress(attr), attr.inspect] # use struct printer
+          end
+        elsif isCStringPointer(attr)
+          if attr.nil?
+            s+='%s (@0x%x) : 0x%x\n'%[field,attr.type.address, getaddress(attr) ]   # only print address/null
+          elsif not is_address_local(attr)
+            s+='%s (@0x%x) : 0x%x (FIELD NOT LOADED)\n'%[field, attr.type.address, getaddress(attr) ]   # only print address in target space
+          else
+            s+='%s (@0x%x) : %s (CString) \n'%[field,attr.type.address, attr.string]
+          end
+        elsif attr.kind_of? Numeric
+          s+='%s : %s\n'%[field, attr.to_s(16) ]
+        else
+          s+='%s : %s\n'%[field, attr.inspect ]  
+        end
+      end
       return s
+    end
       
+=begin      
     def toPyObject(self)
       ''' 
       Returns a Plain Old python object as a perfect copy of this ctypes object.

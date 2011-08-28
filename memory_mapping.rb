@@ -5,6 +5,7 @@
 #
 
 require 'utils'
+require 'dbg'
 
 module Haystack
 
@@ -70,6 +71,75 @@ module Haystack
       return [ret, truncated]
     end
   end
+
+=begin
+    Process memory mapping (metadata about the mapping).
+
+    Attributes:
+     - _process: weak reference to the process
+     - _local_mmap: the LocalMemoryMapping is mmap() has been called
+     _ _base: the current MemoryMapping reader ( process or local_mmap )
+
+    Operations:
+     - "mmap" mmap the MemoryMap to local address space
+     - "readWord()": read a memory word, from local mmap-ed memory if mmap-ed
+     - "readBytes()": read some bytes, from local mmap-ed memory if mmap-ed
+     - "readStruct()": read a structure, from local mmap-ed memory if mmap-ed
+     - "readArray()": read an array, from local mmap-ed memory if mmap-ed
+       useful in list contexts
+=end
+  class ProcessMemoryMapping < MemoryMapping
+    def initialize (process, start, stop, permissions, offset, major_device, minor_device, inode, pathname)
+      super( start, stop, permissions, offset, major_device, minor_device, inode, pathname)
+      @_process = process
+      @_local_mmap = nil
+      @_local_mmap_content = nil
+      # read from process by default
+      @_base = @_process
+    end
+    
+    def readWord(address)
+      word = @_base.readWord(address)
+      return word
+    end
+
+    def readBytes(address, size)
+      data = @_base.readBytes(address, size)
+      return data
+    end
+
+    def readStruct( address, struct)
+      struct = @_base.readStruct(address, struct)
+      return struct
+    end
+
+    def readArray( address, basetype, count)
+      array = @_base.readArray(address, basetype, count)
+      return array
+    end
+
+    def isMmaped?
+      not @_local_mmap.nil?
+    end
+      
+    # ''' mmap-ed access gives a 20% perf increase on by tests '''
+    def mmap
+      if not self.isMmaped?
+        @_local_mmap_content = @_process.readArray(@start, FFI::Type::UCHAR, self.size ) # keep ref
+        #@_local_mmap = @_process().read(@start, @end - @start)
+        @_local_mmap = LocalMemoryMapping.fromPointer( self, @_local_mmap_content )
+        @_base = @_local_mmap
+      end
+      return @_local_mmap
+    end
+
+    def unmmap
+      @_base = @_process
+      @_local_mmap = nil
+      @_local_mmap_content = nil
+    end
+  end
+
 
   class LocalMemoryMapping < MemoryMapping
     def initialize(memoryPointer, start, stop, permissions='rwx-', offset=0x0, major_device=0x0, minor_device=0x0, inode=0x0, pathname='MEMORYDUMP')
@@ -143,6 +213,41 @@ module Haystack
     end
     
   end
+
+
+  PROC_MAP_REGEX = Regexp.new('([0-9a-f]+)-([0-9a-f]+) (.{4}) ([0-9a-f]+) ([0-9a-f]{2}):([0-9a-f]{2}) ([0-9]+) (?: +(.*))?')
+
+=begin
+    Read all memory mappings of the specified process.
+
+    Return a list of MemoryMapping objects, or empty list if it's not possible
+    to read the mappings.
+
+    May raise a ProcessError.
+=end
+  def readProcessMappings(process)
+    maps = []
+    mapsfile = openProc(process.pid)
+    mapsfile.each do |line|
+      match = line.match PROC_MAP_REGEX
+      if match.nil?
+        raise ProcessError(process, "Unable to parse memoy mapping: %r" % line)
+      end
+      map = ProcessMemoryMapping.new(
+        process,
+        match[ 1].to_i( 16),
+        match[ 2].to_i(16),
+        match[ 3], # perms
+        match[ 4].to_i(16),
+        match[ 5].to_i(16),
+        match[ 6].to_i(16),
+        match[ 7], #inode
+        match[ 8]) # pathname
+      maps << map
+    end
+    return maps
+  end
+
 
 end
 
