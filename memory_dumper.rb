@@ -6,10 +6,26 @@
 # http://libarchive-rs.rubyforge.org/
 
 
-require 'memory_mapping'
-require 'utils'
+require 'haystack/memory_mapping'
+require 'haystack/utils'
 
 require 'zip/zip'
+
+
+#
+# ./lib/metasm/metasm/os/windows.rb MEMORY_BASIC_INFORMATION has not pathname
+# we need to get it from process_file_map
+# metasm defines a Windows.Process
+#				elsif WinAPI.ntqueryvirtualmemory(handle, info.baseaddress, WinAPI::MEMORYMAPFILENAME, path, path.length, 0) == 0
+#					us = WinAPI.decode_c_struct('UNICODE_STRING', path)
+#
+#
+#
+# 			info = WinAPI.alloc_c_struct("MEMORY_BASIC_INFORMATION#{addrsz}") that seems nice...
+#				list << [info.baseaddress, info.regionsize, prot, cmt]
+# cmt holds the pathname
+#
+# modules/post/windows/gather/memory_grep is just what we need.
 
 
 module Haystack

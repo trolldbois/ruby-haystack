@@ -4,8 +4,8 @@
 # Copyright (C) 2011 Loic Jaquemet loic.jaquemet+ruby@gmail.com
 #
 
-require 'utils'
-require 'dbg'
+require 'haystack/utils'
+require 'haystack/dbg'
 
 module Haystack
 
