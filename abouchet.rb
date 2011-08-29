@@ -63,6 +63,7 @@ structType = Example::Car
 car = structType.new(memoryMap.pointer) 
 #test_utils_types (car)
 
+if false
 require 'finder'
 finder = Haystack::StructFinder.new([memoryMap])
 res = finder.find_struct(structType, 0, 1 )
@@ -76,5 +77,14 @@ instance,offset = res[0]
 puts instance.name
 puts '------------'
 puts instance.name.string 
+end
 
+require 'memory_dumper'
+dumper = MemoryDumper.new
+dumper.addMemoryMap(memoryMap) 
+dumper.dumpMemfile('example.out.dump')
+
+dumper = MemoryDumper.new
+dumper.addMemory(memoryMap_content, memoryMap.start, memoryMap.stop, memoryMap.pathname) 
+dumper.dumpMemfile('example.out2.dump')
 
